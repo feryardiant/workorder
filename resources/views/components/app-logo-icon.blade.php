@@ -1,0 +1,1 @@
+<flux:icon.briefcase {{ $attributes }} />

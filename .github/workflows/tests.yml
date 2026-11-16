@@ -1,0 +1,121 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - .github/workflows/init-repo.yml
+      - scripts/init-repo.php
+      - tests/InitRepoTest.php
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - .github/workflows/init-repo.yml
+      - scripts/init-repo.php
+      - tests/InitRepoTest.php
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Prepare
+    uses: projek-xyz/actions/.github/workflows/prepare.yml@a84ced1eab6fac0576ed5cdd43f6ee0dfa5044a3 # main @ 2026-11-02
+    with:
+      php-version: ${{ vars.PHP_VERSION || '8.4' }}
+    permissions:
+      contents: read
+      pull-requests: write
+
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    if: ${{ needs.prepare.outputs.should-release != '1' }}
+    needs: [prepare]
+    permissions:
+      contents: read
+
+    env:
+      COLUMN: 120
+      PHP_VERSION: ${{ vars.PHP_VERSION || '8.4' }}
+      DB_CONNECTION: pgsql
+      DB_DATABASE: ${{ github.repository_owner }}
+      DB_USERNAME: ${{ github.repository_owner }}
+      DB_PASSWORD: secret
+
+    services:
+      pgsql:
+        image: postgres:18
+        env:
+          POSTGRES_DB: ${{ env.DB_DATABASE }}
+          POSTGRES_USER: ${{ env.DB_USERNAME }}
+          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: xdebug
+
+      - name: Composer Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ needs.prepare.outputs.composer-cache-dir }}
+          key: php${{ env.PHP_VERSION }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: php${{ env.PHP_VERSION }}-composer-
+
+      - name: Install
+        run: |
+          cp .github/.env.example .env
+          composer install --no-interaction --no-progress --ansi
+          php artisan key:generate --ansi
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          cache: true
+
+      - name: Setup Playwright
+        run: vpx playwright install chromium --with-deps --only-shell
+
+      - name: Check frontend
+        run: vp check
+
+      - name: Test frontend
+        env:
+          LARAVEL_BYPASS_ENV_CHECK: 1
+        run: vp test
+
+      - name: Build Frontend
+        run: vp build
+
+      - name: Lint
+        run: vendor/bin/pint --parallel --test
+
+      - name: Static Analysis
+        run: vendor/bin/phpstan analyse
+
+      - name: Test App
+        run: php artisan test
+
+      - name: Report test coverages
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        with:
+          github-token: ${{ github.token }}
+          file: tests/coverage/clover.xml
