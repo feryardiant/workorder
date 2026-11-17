@@ -180,7 +180,7 @@ class Upload extends Component
 
     private function assertWritable(Project|Task $attachable): void
     {
-        abort_if($attachable->status->isCanceled() || $attachable->status->isFinished(), 403);
+        abort_if($attachable->status->isCanceled(), 403);
 
         if ($attachable instanceof Task) {
             abort_if($attachable->isDisabled() || $attachable->status->isCompleted(), 403);

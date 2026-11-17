@@ -173,12 +173,16 @@ class Project extends Model
      */
     protected function status(): Attribute
     {
-        return Attribute::make(get: fn (): ProjectStatus => match (true) {
-            $this->canceled_date !== null => ProjectStatus::Canceled,
-            $this->finished_date !== null => ProjectStatus::Finished,
-            $this->started_date === null => ProjectStatus::NotStarted,
-            $this->started_date->isFuture() => ProjectStatus::Scheduled,
-            default => ProjectStatus::OnGoing,
+        return Attribute::make(get: function (): ProjectStatus {
+            $today = CarbonImmutable::now((string) data_get(auth()->user(), 'timezone', 'UTC'))->toDateString();
+
+            return match (true) {
+                $this->canceled_date !== null => ProjectStatus::Canceled,
+                $this->finished_date !== null => ProjectStatus::Finished,
+                $this->started_date === null => ProjectStatus::NotStarted,
+                $this->started_date->toDateString() > $today => ProjectStatus::Scheduled,
+                default => ProjectStatus::OnGoing,
+            };
         });
     }
 

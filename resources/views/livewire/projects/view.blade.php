@@ -17,6 +17,7 @@
             <flux:button variant="primary" icon="check" wire:click="finishProject">{{ __('Finish') }}</flux:button>
         @endif
 
+        @if ($this->canManage)
         <flux:dropdown align="end">
             <flux:button icon="ellipsis-horizontal" square :aria-label="__('More actions')" />
             <flux:menu>
@@ -32,6 +33,7 @@
                 @endif
             </flux:menu>
         </flux:dropdown>
+        @endif
     </x-slot:actions>
 
     <div class="flex flex-col gap-6 lg:flex-row">

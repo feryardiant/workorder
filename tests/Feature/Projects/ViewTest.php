@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\Projects\CancelTask;
 use App\Actions\Projects\CreateProject;
 use App\Enums\Role;
+use App\Livewire\Projects\Index;
 use App\Livewire\Projects\View;
 use App\Models\Attachment;
 use App\Models\Organization;
@@ -275,4 +276,24 @@ it('starts the project on the local date of the user', function (): void {
         ->call('startTask', $project->tasks->first()->getKey());
 
     expect($project->refresh()->started_date?->toDateString())->toBe('2026-11-19');
+});
+
+it('reports the project as ongoing on the user local date', function (): void {
+    /** @var TestCase $this */
+    $this->travelTo(CarbonImmutable::parse('2026-11-18 23:30:00'));
+
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Status timezone']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+
+    auth()->user()?->update(['timezone' => 'Pacific/Kiritimati']);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $project->tasks->first()->getKey());
+
+    expect($project->refresh()->status->isOnGoing())->toBeTrue();
+
+    Livewire::test(Index::class)
+        ->set('status', 'on_going')
+        ->assertSee($project->title);
 });
