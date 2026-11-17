@@ -62,7 +62,7 @@
                         @endif
                     </flux:table.cell>
 
-                    <flux:table.cell>{{ $attachment->created_at?->isoFormat('DD MMM YYYY') }}</flux:table.cell>
+                    <flux:table.cell><x-local-time :date="$attachment->created_at" /></flux:table.cell>
                 </flux:table.row>
             @empty
                 <flux:table.row>

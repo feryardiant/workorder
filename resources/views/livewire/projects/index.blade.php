@@ -64,7 +64,7 @@
                                 <flux:text class="text-wrap text-sm">{{ $project->summary }}</flux:text>
                             @endif
                             <flux:text class="text-xs text-zinc-500">
-                                {{ $project->created_at?->isoFormat('DD MMM YYYY') }}
+                                <x-local-time :date="$project->created_at" />
                                 &middot; {{ $project->kind?->title }}
                                 &middot; {{ $project->code }}
                             </flux:text>

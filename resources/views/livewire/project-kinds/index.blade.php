@@ -27,7 +27,7 @@
                         </flux:link>
                     </flux:table.cell>
                     <flux:table.cell>{{ $kind->tasks_count }}</flux:table.cell>
-                    <flux:table.cell>{{ $kind->created_at?->isoFormat('DD MMM YYYY') }}</flux:table.cell>
+                    <flux:table.cell><x-local-time :date="$kind->created_at" /></flux:table.cell>
                 </flux:table.row>
             @empty
                 <flux:table.row>

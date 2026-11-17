@@ -3,7 +3,7 @@
         <div class="flex flex-wrap items-center gap-2">
             <flux:badge size="sm">{{ $project->kind?->title }}</flux:badge>
             <flux:text class="text-zinc-500">
-                {{ $project->created_at?->isoFormat('DD MMM YYYY') }} &middot; {{ $project->code }}
+                <x-local-time :date="$project->created_at" /> &middot; {{ $project->code }}
             </flux:text>
         </div>
     </x-slot:subheading>
