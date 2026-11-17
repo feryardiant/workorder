@@ -196,15 +196,24 @@
                     @if (filled($project->summary))
                         <flux:text class="text-base/7">{{ $project->summary }}</flux:text>
                     @endif
-
-                    @if ($assignees->isNotEmpty())
-                        <flux:avatar.group>
-                            @foreach ($assignees as $person)
-                                <flux:avatar size="sm" :src="$person->photo_url" :name="$person->name" :initials="$person->initials()" />
-                            @endforeach
-                        </flux:avatar.group>
-                    @endif
                 </flux:card.body>
+
+                <flux:card.footer>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex flex-1 items-center gap-2">
+                            <flux:avatar size="sm" :src="$project->customer?->logo_url" :name="$project->customer?->name" :initials="$project->customer?->initials()" />
+                            <span class="truncate">{{ $project->customer?->name }}</span>
+                        </div>
+
+                        @if ($assignees->isNotEmpty())
+                            <flux:avatar.group>
+                                @foreach ($assignees as $person)
+                                    <flux:avatar size="sm" :src="$person->photo_url" :name="$person->name" :initials="$person->initials()" />
+                                @endforeach
+                            </flux:avatar.group>
+                        @endif
+                    </div>
+                </flux:card.footer>
             </flux:card>
 
             <flux:card body="divided">
