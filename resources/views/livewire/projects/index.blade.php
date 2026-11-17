@@ -1,0 +1,207 @@
+<x-page :heading="__('Projects')">
+    <x-slot:subheading>
+        <flux:subheading>{{ __('Projects of :organization', ['organization' => $this->currentOrganization()?->name ?? __('No organization')]) }}</flux:subheading>
+    </x-slot:subheading>
+
+    <x-slot:actions>
+        <flux:button variant="primary" icon="plus" wire:click="$set('showCreate', true)">
+            {{ __('Add project') }}
+        </flux:button>
+    </x-slot:actions>
+
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <flux:input
+            type="search"
+            wire:model.live.debounce.300ms="search"
+            icon="magnifying-glass"
+            :placeholder="__('Search projects...')"
+            :aria-label="__('Search projects')"
+        />
+
+        <flux:select wire:model.live="kindId" :placeholder="__('All kinds')" :aria-label="__('Kind')">
+            <flux:select.option value="">{{ __('All kinds') }}</flux:select.option>
+            @foreach ($kinds as $kind)
+                <flux:select.option value="{{ $kind->id }}">{{ $kind->title }}</flux:select.option>
+            @endforeach
+        </flux:select>
+
+        <flux:select wire:model.live="customerId" :placeholder="__('All customers')" :aria-label="__('Customer')">
+            <flux:select.option value="">{{ __('All customers') }}</flux:select.option>
+            @foreach ($customers as $customer)
+                <flux:select.option value="{{ $customer->id }}">{{ $customer->name }}</flux:select.option>
+            @endforeach
+        </flux:select>
+
+        <flux:select wire:model.live="status" :placeholder="__('All statuses')" :aria-label="__('Status')">
+            <flux:select.option value="">{{ __('All statuses') }}</flux:select.option>
+            @foreach ($statuses as $case)
+                <flux:select.option value="{{ $case->value }}">{{ $case->label() }}</flux:select.option>
+            @endforeach
+        </flux:select>
+
+        <flux:field>
+            <flux:label>{{ __('Started from') }}</flux:label>
+            <flux:input type="date" wire:model.live="startedFrom" />
+        </flux:field>
+
+        <flux:field>
+            <flux:label>{{ __('Started to') }}</flux:label>
+            <flux:input type="date" wire:model.live="startedTo" />
+        </flux:field>
+
+        <flux:field>
+            <flux:label>{{ __('Finished from') }}</flux:label>
+            <flux:input type="date" wire:model.live="finishedFrom" />
+        </flux:field>
+
+        <flux:field>
+            <flux:label>{{ __('Finished to') }}</flux:label>
+            <flux:input type="date" wire:model.live="finishedTo" />
+        </flux:field>
+    </div>
+
+    <flux:table :paginate="$projects">
+        <flux:table.columns>
+            <flux:table.column class="w-6/12">{{ __('Title') }}</flux:table.column>
+            <flux:table.column class="w-2/12">{{ __('Customer') }}</flux:table.column>
+            <flux:table.column class="w-2/12">{{ __('Assignee') }}</flux:table.column>
+            <flux:table.column class="w-1/12" align="center">{{ __('Status') }}</flux:table.column>
+            <flux:table.column class="w-1/12" align="center">{{ __('Actions') }}</flux:table.column>
+        </flux:table.columns>
+
+        <flux:table.rows>
+            @forelse ($projects as $project)
+                <flux:table.row :key="$project->id">
+                    <flux:table.cell class="w-6/12">
+                        <div class="flex flex-col gap-1 w-full">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <flux:link :href="route('projects.view', ['project' => $project->slug])" wire:navigate>
+                                    <span class="font-medium">{{ $project->title }}</span>
+                                </flux:link>
+                                <flux:badge size="sm">{{ $project->kind?->title }}</flux:badge>
+                            </div>
+                            @if (filled($project->summary))
+                                <flux:text class="text-wrap text-sm">{{ $project->summary }}</flux:text>
+                            @endif
+                            <flux:text class="text-xs text-zinc-500">
+                                {{ $project->created_at?->isoFormat('DD MMM YYYY') }}
+                                &middot; {{ $project->kind?->title }}
+                                &middot; {{ $project->code }}
+                            </flux:text>
+                        </div>
+                    </flux:table.cell>
+
+                    <flux:table.cell class="w-2/12">
+                        <div class="flex items-center gap-2">
+                            <flux:avatar size="xs" :src="$project->customer?->logo_url" :name="$project->customer?->name" />
+                            <span class="truncate">{{ $project->customer?->name }}</span>
+                        </div>
+                    </flux:table.cell>
+
+                    <flux:table.cell class="w-2/12">
+                        @if ($project->assignee !== null)
+                            <div class="flex items-center gap-2">
+                                <flux:avatar size="xs" :src="$project->assignee->photo_url" :name="$project->assignee->name" />
+                                <span class="truncate">{{ $project->assignee->name }}</span>
+                            </div>
+                        @else
+                            <flux:text>&mdash;</flux:text>
+                        @endif
+                    </flux:table.cell>
+
+                    <flux:table.cell class="w-1/12" align="center">
+                        <div class="flex flex-col items-center gap-1">
+                            <flux:badge size="sm">{{ $project->status->label() }}</flux:badge>
+                            @if ($project->status === \App\Enums\ProjectStatus::OnGoing)
+                                @php([$finished, $total] = $project->taskProgress())
+                                <flux:text class="text-xs">{{ __(':finished/:total tasks', ['finished' => $finished, 'total' => $total]) }}</flux:text>
+                            @endif
+                        </div>
+                    </flux:table.cell>
+
+                    <flux:table.cell class="w-1/12" align="center">
+                        <flux:dropdown align="end">
+                            <flux:button size="sm" icon="ellipsis-horizontal" square :aria-label="__('Actions')" />
+                            <flux:menu>
+                                <flux:menu.item icon="eye" :href="route('projects.view', ['project' => $project->slug])" wire:navigate>
+                                    {{ __('View project') }}
+                                </flux:menu.item>
+                                <flux:menu.item variant="danger" icon="archive-box" wire:click="confirmArchive({{ $project->id }})">
+                                    {{ __('Archive project') }}
+                                </flux:menu.item>
+                            </flux:menu>
+                        </flux:dropdown>
+                    </flux:table.cell>
+                </flux:table.row>
+            @empty
+                <flux:table.row>
+                    <flux:table.cell colspan="5">
+                        <flux:text>{{ __('No projects found.') }}</flux:text>
+                    </flux:table.cell>
+                </flux:table.row>
+            @endforelse
+        </flux:table.rows>
+    </flux:table>
+
+    <x-modal wire:model.self="showCreate" :title="__('New project')">
+        <div class="space-y-4">
+            <x-ui.select wire:model="createKindId" :label="__('Kind')" :placeholder="__('Choose a kind...')" :empty="__('No kinds found')">
+                @foreach ($kinds as $kind)
+                    <x-ui.select.option value="{{ $kind->id }}">{{ $kind->title }}</x-ui.select.option>
+                @endforeach
+            </x-ui.select>
+
+            <x-ui.select wire:model="createCustomerId" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
+                @foreach ($customers as $customer)
+                    <x-ui.select.option value="{{ $customer->id }}" icon="building-office">{{ $customer->name }}</x-ui.select.option>
+                @endforeach
+            </x-ui.select>
+
+            @if (blank($createCustomerId))
+                <flux:button
+                    size="sm"
+                    variant="subtle"
+                    icon="plus"
+                    wire:click="$dispatch('create-contact', { role: 'customer' })"
+                >
+                    {{ __('Add customer') }}
+                </flux:button>
+            @endif
+
+            <x-ui.select wire:model="createAssigneeId" :label="__('Assignee')" :placeholder="__('Choose an assignee...')" :empty="__('No members found')">
+                @foreach ($members as $member)
+                    <x-ui.select.option value="{{ $member->id }}" icon="user">{{ $member->name }}</x-ui.select.option>
+                @endforeach
+            </x-ui.select>
+
+            <flux:textarea wire:model="createSummary" :label="__('Summary')" rows="3" />
+
+            <x-ui.date-picker wire:model="createMandatedDate" :label="__('Mandated date')" clearable with-today />
+            <x-ui.date-picker wire:model="createStartedDate" :label="__('Start date')" clearable with-today />
+
+            <div class="flex items-center justify-between">
+                <flux:modal.close>
+                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                </flux:modal.close>
+
+                <flux:button variant="primary" wire:click="create">{{ __('Create project') }}</flux:button>
+            </div>
+        </div>
+    </x-modal>
+
+    <x-modal
+        wire:model.self="showArchive"
+        :title="__('Archive project')"
+        :subtitle="__('The project is removed from lists but kept.')"
+    >
+        <div class="flex items-center justify-between">
+            <flux:modal.close>
+                <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+            </flux:modal.close>
+
+            <flux:button variant="danger" wire:click="archive">{{ __('Archive') }}</flux:button>
+        </div>
+    </x-modal>
+
+    <livewire:contacts.edit />
+</x-page>

@@ -30,6 +30,12 @@ enum AuditEvent: string
     case ApprovalDeclined = 'approval.declined';
     case ApprovalCancelled = 'approval.cancelled';
 
+    case ProjectChanged = 'project.changed';
+    case ProjectKindChanged = 'project_kind.changed';
+    case ProjectCanceled = 'project.canceled';
+    case TaskChanged = 'task.changed';
+    case TaskCanceled = 'task.canceled';
+
     public function label(): string
     {
         return match ($this) {
@@ -49,6 +55,11 @@ enum AuditEvent: string
             self::ApprovalAccepted => __('Approval accepted'),
             self::ApprovalDeclined => __('Approval declined'),
             self::ApprovalCancelled => __('Approval cancelled'),
+            self::ProjectChanged => __('Project changed'),
+            self::ProjectKindChanged => __('Project kind changed'),
+            self::ProjectCanceled => __('Project canceled'),
+            self::TaskChanged => __('Task changed'),
+            self::TaskCanceled => __('Task canceled'),
         };
     }
 }

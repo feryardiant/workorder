@@ -91,7 +91,7 @@ class Edit extends Component
     public bool $genderEnabled = false;
 
     #[On('create-contact')]
-    public function openCreate(): void
+    public function openCreate(?string $role = null): void
     {
         Gate::authorize('createContact', Organization::class);
 
@@ -120,7 +120,9 @@ class Edit extends Component
         );
 
         $this->type = 'individual';
-        $this->role = OrganizationRelationshipType::Customer->value;
+        $this->role = $role !== null && OrganizationRelationshipType::tryFrom($role)?->isExternal()
+            ? $role
+            : OrganizationRelationshipType::Customer->value;
         $this->start_date = now()->format('Y-m-d');
         $this->resetAddress();
 
@@ -260,6 +262,7 @@ class Edit extends Component
 
         try {
             $actor = Auth::user();
+            $entity = null;
 
             if ($this->contactId !== null) {
                 $updateContact->handle(
@@ -274,7 +277,7 @@ class Edit extends Component
 
                 $message = __('Contact updated.');
             } else {
-                $createContact->handle(
+                $entity = $createContact->handle(
                     $organization,
                     $data,
                     $this->photo instanceof UploadedFile ? $this->photo : null,
@@ -294,7 +297,7 @@ class Edit extends Component
         }
 
         $this->showModal = false;
-        $this->dispatch('contact-updated');
+        $this->dispatch('contact-updated', contactId: $entity?->getKey());
 
         Flux::toast(variant: 'success', text: $message);
     }
