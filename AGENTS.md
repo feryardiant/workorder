@@ -71,6 +71,7 @@ summary: One or two sentences a reviewer can scan.
 
 ## Conventions
 
+- Create every new file under `app/` or `database/` with the matching `php artisan make:*` command, including `make:class` when no specific generator exists; do not create these files by hand.
 - Before non-trivial work, check `.agents/skills/` and load the matching skill; the directory is gitignored and may be absent.
 - Laravel Boost MCP is configured in `opencode.json`. Prefer `search-docs` for framework/package APIs, `database-query` / `database-schema` for read-only SQL, and `browser-logs` for frontend errors.
 - New PHP files need `declare(strict_types=1)`; Pint also enforces native function invocation and FQCN imports. Models use Laravel 13 attributes (`#[Fillable]`, `#[Hidden]`, `#[RouteKey]`) instead of properties.
