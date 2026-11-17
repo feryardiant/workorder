@@ -56,6 +56,19 @@ Laravel 13 / PHP 8.4 multi-tenant CRM for organizations, people/contacts, member
 - UI kit strings live in `resources/lang/{id,en}/ui.php` as `__('ui.{component}.{part}')` with kebab-case segments. Framework groups (`auth`, `passwords`, `pagination`, `validation`) live in `resources/lang/id/*.php`; do not add other English translation files outside `resources/lang/en/ui.php`.
 - Preserve placeholders such as `:name`, `:role`, and `:count`. Tests asserting translated output should use Indonesian values and set the locale explicitly when needed.
 
+## Specs and plans
+
+- Specs live in `.agents/specs/`, plans in `.agents/plans/`. One file per document.
+- Name: `NNN_dashed-slug-spec.md` or `NNN_dashed-slug-plan.md` — the next free three-digit number in that directory (starting `001`), an underscore, the dashed slug, then the `-spec` / `-plan` suffix.
+- Every document starts with frontmatter holding `status` and `summary`:
+
+```yaml
+---
+status: draft
+summary: One or two sentences a reviewer can scan.
+---
+```
+
 ## Conventions
 
 - Before non-trivial work, check `.agents/skills/` and load the matching skill; the directory is gitignored and may be absent.
