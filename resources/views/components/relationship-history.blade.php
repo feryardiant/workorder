@@ -1,6 +1,6 @@
 @props(['periods'])
 
-<flux:card class="max-w-2xl space-y-4">
+<flux:card class="max-w-2xl flex flex-col gap-4">
     <flux:heading>{{ __('History') }}</flux:heading>
     <flux:separator variant="subtle" />
 

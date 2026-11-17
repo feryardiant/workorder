@@ -306,6 +306,23 @@ class View extends Component
         event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, ['action' => 'started']));
     }
 
+    public function finishTask(int $taskId): void
+    {
+        $task = $this->findTask($taskId);
+
+        abort_if($task->isDisabled() || $task->isCanceled(), 403);
+        abort_if($task->finished_at !== null, 403);
+        abort_if($task->started_at === null || $task->started_at->isFuture(), 403);
+
+        $task->update(['finished_at' => now()]);
+
+        unset($this->tasks, $this->canFinish);
+
+        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, ['action' => 'finished']));
+
+        Flux::toast(variant: 'success', text: __('Task finished.'));
+    }
+
     public function toggleSubTask(int $taskId): void
     {
         $task = $this->findTask($taskId);

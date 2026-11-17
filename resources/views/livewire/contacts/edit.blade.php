@@ -57,7 +57,7 @@
             />
 
             @unless ($this->sharedFieldsLocked)
-                <flux:card class="space-y-4">
+                <flux:card class="flex flex-col gap-4">
                     <div>
                         <flux:heading>{{ __('Address') }}</flux:heading>
                         <flux:separator variant="subtle" class="mt-2" />
@@ -123,7 +123,7 @@
             />
 
             @if ($this->isOrganizationType)
-                <flux:card class="space-y-4">
+                <flux:card class="flex flex-col gap-4">
                     <div>
                         <flux:heading>{{ __('Contact person') }}</flux:heading>
                         <flux:separator variant="subtle" class="mt-2" />

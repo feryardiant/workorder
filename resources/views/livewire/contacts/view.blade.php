@@ -31,7 +31,7 @@
         </flux:callout>
     @endif
 
-    <flux:card class="max-w-lg space-y-4">
+    <flux:card class="max-w-lg flex flex-col gap-4">
         <div>
             <flux:text>{{ __('Type') }}</flux:text>
             <flux:heading>{{ $isOrganization ? __('Organization') : __('Individual') }}</flux:heading>
@@ -94,7 +94,7 @@
     <x-relationship-history :periods="$this->history" />
 
     @if ($isOrganization && ! $stakeholder->trashed())
-        <flux:card class="max-w-lg space-y-4">
+        <flux:card class="max-w-lg flex flex-col gap-4">
             <flux:heading>{{ __('Contact person') }}</flux:heading>
             <flux:separator variant="subtle" />
 

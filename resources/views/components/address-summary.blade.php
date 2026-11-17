@@ -1,6 +1,6 @@
 @props(['address'])
 
-<flux:card class="max-w-lg space-y-4">
+<flux:card class="max-w-lg flex flex-col gap-4">
     <flux:heading>{{ __('Address') }}</flux:heading>
     <flux:separator variant="subtle" />
 

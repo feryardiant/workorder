@@ -123,7 +123,7 @@
     </section>
 
     <section data-ui-demo="datetime-picker-plain" class="max-w-md space-y-3">
-        <form method="get" action="{{ route('ui.datetime-picker') }}" class="space-y-4">
+        <form method="get" action="{{ route('ui.datetime-picker') }}" class="flex flex-col gap-4">
             <x-ui.datetime-picker name="plain_at" value="2024-02-15T14:30" label="Plain datetime" />
             <x-ui.datetime-picker
                 name="plain_schedule"

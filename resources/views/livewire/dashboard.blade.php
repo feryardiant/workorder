@@ -71,7 +71,7 @@
         </div>
 
         <div class="grid gap-4 lg:grid-cols-8">
-            <flux:card class="min-h-96 space-y-4 lg:col-span-5">
+            <flux:card class="min-h-96 flex flex-col gap-4 lg:col-span-5">
                 <flux:heading size="lg">{{ __('Expiring soon') }}</flux:heading>
                 <flux:separator variant="subtle" />
 
@@ -111,7 +111,7 @@
                 @endforelse
             </flux:card>
 
-            <flux:card class="min-h-96 space-y-4 lg:col-span-3">
+            <flux:card class="min-h-96 flex flex-col gap-4 lg:col-span-3">
                 <flux:heading size="lg">{{ __('Recent members') }}</flux:heading>
                 <flux:separator variant="subtle" />
 

@@ -18,7 +18,7 @@
         <flux:dropdown align="end">
             <flux:button icon="ellipsis-horizontal" square :aria-label="__('More actions')" />
             <flux:menu>
-                @if ($project->status !== \App\Enums\ProjectStatus::Canceled)
+                @if (! $project->status->isCanceled())
                     <flux:menu.item icon="no-symbol" wire:click="confirmCancelProject">{{ __('Cancel project') }}</flux:menu.item>
                 @endif
                 <flux:menu.item variant="danger" icon="archive-box" wire:click="confirmArchive">{{ __('Archive project') }}</flux:menu.item>
@@ -29,7 +29,7 @@
     <div class="flex gap-6">
         <div class="flex flex-col gap-4 w-full md:w-5/8">
             @foreach ($tasks as $task)
-                @php($disabled = $task->isDisabled() || $task->isCanceled())
+                @php($disabled = $task->isDisabled() || $task->status->isCanceled())
 
                 <flux:card variant="muted" body="divided" id="task-{{ $task->id }}" wire:key="task-{{ $task->id }}">
                     {{-- flex items-start justify-between gap-3 --}}
@@ -38,7 +38,7 @@
                             <div class="flex flex-wrap items-center gap-2">
                                 <flux:heading size="sm">{{ $task->title }}</flux:heading>
 
-                                @if ($task->isCanceled())
+                                @if ($task->status->isCanceled())
                                     <flux:badge size="sm" color="red">{{ __('Canceled') }}</flux:badge>
                                 @elseif ($disabled)
                                     <flux:badge size="sm" color="zinc">{{ __('Disabled') }}</flux:badge>
@@ -54,18 +54,25 @@
 
                         <flux:card.actions>
                             @unless ($disabled)
+                                @if ($task->status->isNotStarted())
+                                    <flux:button size="sm" variant="subtle" icon="play" wire:click="startTask({{ $task->id }})">{{ __('Start task') }}</flux:button>
+                                @endif
+
+                                @if ($task->status->isOnGoing())
+                                    <flux:button size="sm" variant="subtle" icon="stop" wire:click="finishTask({{ $task->id }})">{{ __('Finish task') }}</flux:button>
+                                @endif
+
                                 <flux:dropdown align="end">
                                     <flux:button size="sm" icon="ellipsis-horizontal" square :aria-label="__('Task actions')" />
 
                                     <flux:menu>
-                                        @if ($task->started_at === null || $task->started_at->isFuture())
-                                            <flux:menu.item icon="play" wire:click="startTask({{ $task->id }})">{{ __('Start task') }}</flux:menu.item>
-                                        @endif
                                         <flux:menu.item icon="pencil-square" wire:click="openTaskInfo({{ $task->id }})">{{ __('Update information') }}</flux:menu.item>
                                         <flux:menu.item icon="user-plus" wire:click="openMember({{ $task->id }})">{{ __('Assign member') }}</flux:menu.item>
                                         <flux:menu.item icon="building-office" wire:click="openContact({{ $task->id }})">{{ __('Assign contact') }}</flux:menu.item>
                                         <flux:menu.separator />
-                                        <flux:menu.item variant="danger" icon="no-symbol" wire:click="openCancel({{ $task->id }})">{{ __('Cancel task') }}</flux:menu.item>
+                                        @if (!$task->status->isCompleted())
+                                            <flux:menu.item variant="danger" icon="no-symbol" wire:click="openCancel({{ $task->id }})">{{ __('Cancel task') }}</flux:menu.item>
+                                        @endif
                                     </flux:menu>
                                 </flux:dropdown>
                             @endunless
@@ -77,12 +84,12 @@
                             <flux:table bleed>
                                 <flux:table.rows>
                                     @foreach ($task->subTasks as $subTask)
-                                        @php($subDisabled = $disabled || $subTask->isCanceled())
+                                        @php($subDisabled = $disabled || $subTask->status->isCanceled())
 
                                         <flux:table.row>
                                             <flux:table.cell class="w-1/12">
                                                 <flux:checkbox
-                                                    :checked="$subTask->finished_at !== null"
+                                                    :checked="$subTask->status->isFinished()"
                                                     :disabled="$subDisabled"
                                                     wire:click="toggleSubTask({{ $subTask->id }})"
                                                     :aria-label="__('Mark :title as finished', ['title' => $subTask->title])"
@@ -104,7 +111,7 @@
                                                     <flux:dropdown align="end">
                                                         <flux:button size="xs" icon="ellipsis-horizontal" square :aria-label="__('Sub-task actions')" />
                                                         <flux:menu>
-                                                            @if ($subTask->started_at === null || $subTask->started_at->isFuture())
+                                                            @if ($subTask->status->isNotStarted())
                                                                 <flux:menu.item icon="play" wire:click="startTask({{ $subTask->id }})">{{ __('Start task') }}</flux:menu.item>
                                                             @endif
                                                             <flux:menu.item icon="pencil-square" wire:click="openTaskInfo({{ $subTask->id }})">{{ __('Update information') }}</flux:menu.item>
@@ -199,7 +206,7 @@
     </div>
 
     <x-modal wire:model.self="showEdit" :title="__('Edit project')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <flux:input wire:model="title" :label="__('Title')" />
             <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" />
             <flux:textarea wire:model="remark" :label="__('Remark')" rows="2" />
@@ -258,7 +265,7 @@
     </x-modal>
 
     <x-modal wire:model.self="showTaskInfo" :title="__('Update information')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <flux:input wire:model="taskTitle" :label="__('Title')" />
             <flux:textarea wire:model="taskSummary" :label="__('Summary')" rows="3" />
 
@@ -272,7 +279,7 @@
     </x-modal>
 
     <x-modal wire:model.self="showMember" :title="__('Assign member')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <flux:radio.group wire:model="memberId">
                 @foreach ($assignableMembers as $member)
                     <flux:radio :value="$member->id" :label="$member->name" />
@@ -289,7 +296,7 @@
     </x-modal>
 
     <x-modal wire:model.self="showContact" :title="__('Assign contact')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <flux:radio.group wire:model="contactId">
                 @foreach ($contacts as $contact)
                     <flux:radio :value="$contact->id" :label="$contact->name" />
@@ -310,7 +317,7 @@
     </x-modal>
 
     <x-modal wire:model.self="showCancel" :title="__('Cancel task')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <flux:textarea wire:model="cancelReason" :label="__('Reason')" rows="3" required />
             <flux:error name="reason" />
 
@@ -324,7 +331,7 @@
     </x-modal>
 
     <x-modal wire:model.self="showCancelProject" :title="__('Cancel project')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <flux:textarea wire:model="projectCancelReason" :label="__('Reason')" rows="3" required />
             <flux:error name="reason" />
 

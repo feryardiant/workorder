@@ -99,7 +99,7 @@
     </div>
 
     <x-modal wire:model.self="showTaskForm" flyout position="right" variant="floating" :title="$editingTask === null ? __('Add task') : __('Edit task')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <flux:input wire:model="taskTitle" :label="__('Title')" />
             <flux:textarea wire:model="taskSummary" :label="__('Summary')" rows="3" />
 
@@ -151,7 +151,7 @@
     </x-modal>
 
     <x-modal wire:model.self="showSubtaskForm" :title="$editingSubtask === null ? __('Add sub-task') : __('Edit sub-task')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <flux:input wire:model="subtaskTitle" :label="__('Title')" />
             <flux:textarea wire:model="subtaskSummary" :label="__('Summary')" rows="3" />
 

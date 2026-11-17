@@ -110,6 +110,7 @@ final class CreateProject
         return Task::create([
             'project_id' => $project->getKey(),
             'parent_id' => $parent?->getKey(),
+            'assignee_id' => $project->assignee_id,
             'slug' => Str::slug(\sprintf(
                 '%s-%s-%d-%d',
                 $project->slug,

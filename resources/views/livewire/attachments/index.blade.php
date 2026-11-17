@@ -76,7 +76,7 @@
 
     <x-modal wire:model.self="showEdit" :title="$editTitle">
         @if ($editing !== null)
-            <div class="space-y-4">
+            <div class="flex flex-col gap-4">
                 <flux:input wire:model="editTitle" :label="__('Title')" />
 
                 <flux:field>

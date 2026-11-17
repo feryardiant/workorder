@@ -92,7 +92,7 @@
                     <flux:table.cell class="w-1/12" align="center">
                         <div class="flex flex-col items-center gap-1">
                             <flux:badge size="sm">{{ $project->status->label() }}</flux:badge>
-                            @if ($project->status === \App\Enums\ProjectStatus::OnGoing)
+                            @if ($project->status->isOnGoing())
                                 @php([$finished, $total] = $project->taskProgress())
                                 <flux:text class="text-xs">{{ __(':finished/:total tasks', ['finished' => $finished, 'total' => $total]) }}</flux:text>
                             @endif
@@ -124,7 +124,7 @@
     </flux:table>
 
     <x-modal wire:model.self="showCreate" :title="__('New project')">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
             <x-ui.select wire:model="createKindId" :label="__('Kind')" :placeholder="__('Choose a kind...')" :empty="__('No kinds found')">
                 @foreach ($kinds as $kind)
                     <x-ui.select.option value="{{ $kind->id }}">{{ $kind->title }}</x-ui.select.option>

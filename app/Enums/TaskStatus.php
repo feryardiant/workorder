@@ -14,6 +14,31 @@ enum TaskStatus: string
     case Finished = 'finished';
     case Canceled = 'canceled';
 
+    public function isCompleted(): bool
+    {
+        return $this->isCanceled() || $this->isFinished();
+    }
+
+    public function isNotStarted(): bool
+    {
+        return $this === self::NotStarted;
+    }
+
+    public function isFinished(): bool
+    {
+        return $this === self::Finished;
+    }
+
+    public function isOnGoing(): bool
+    {
+        return $this === self::OnGoing;
+    }
+
+    public function isCanceled(): bool
+    {
+        return $this === self::Canceled;
+    }
+
     /**
      * Get the human-readable label for the status.
      */

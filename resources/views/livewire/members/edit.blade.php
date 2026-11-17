@@ -72,7 +72,7 @@
             @endif
 
             @if ($this->canEditProfile)
-                <flux:card class="space-y-4">
+                <flux:card class="flex flex-col gap-4">
                     <div>
                         <flux:heading>{{ __('Address') }}</flux:heading>
                         <flux:separator variant="subtle" class="mt-2" />

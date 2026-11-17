@@ -71,7 +71,7 @@
         @endif
     </x-slot:actions>
 
-    <flux:card class="max-w-lg space-y-4">
+    <flux:card class="max-w-lg flex flex-col gap-4">
         <div>
             <flux:text>{{ __('Name') }}</flux:text>
             <flux:heading>{{ $person->name }}</flux:heading>

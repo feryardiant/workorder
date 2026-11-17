@@ -93,7 +93,7 @@
     </section>
 
     <section data-ui-demo="time-picker-plain" class="max-w-xs space-y-3">
-        <form method="get" action="{{ route('ui.time-picker') }}" class="space-y-4">
+        <form method="get" action="{{ route('ui.time-picker') }}" class="flex flex-col gap-4">
             <x-ui.time-picker name="plain_time" value="14:30" label="Plain time" interval="30" />
             <x-ui.time-picker
                 name="plain_times"

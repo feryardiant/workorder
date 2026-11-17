@@ -12,6 +12,7 @@ use App\Livewire\Projects\Index;
 use App\Livewire\Projects\View;
 use App\Models\Attachment;
 use App\Models\Organization;
+use App\Models\Person;
 use App\Models\Project;
 use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
@@ -319,4 +320,39 @@ it('excludes the current assignee from the member modal', function (): void {
 
     expect($ids)->not->toContain($me?->person?->getKey())
         ->and($ids)->toContain($teammate->person?->getKey());
+});
+
+it('seeds every copied task with the project assignee', function (): void {
+    $assignee = auth()->user()?->person;
+
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Lambda']);
+    $task = ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    ProjectKindTask::factory()->subTaskOf($task)->create(['position' => 1]);
+
+    $project = app(CreateProject::class)->handle(
+        $this->tenant,
+        $kind,
+        contactOrganization($this->tenant),
+        $assignee,
+    );
+
+    $other = Person::factory()->create();
+    $project->update(['assignee_id' => $other->getKey()]);
+
+    expect($project->allTasks()->where('assignee_id', $assignee?->getKey())->count())->toBe(2)
+        ->and($project->allTasks()->where('assignee_id', $other->getKey())->count())->toBe(0);
+});
+
+it('finishes a started task', function (): void {
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Mu']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $task = $project->tasks->first();
+    $task->update(['started_at' => now()->subHour()]);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('finishTask', $task->getKey())
+        ->assertHasNoErrors();
+
+    expect($task->refresh()->finished_at)->not->toBeNull();
 });
