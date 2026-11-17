@@ -24,97 +24,82 @@
             </div>
         </x-slot:actions>
 
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <flux:card body="divided">
                 <flux:card.body class="space-y-2">
-                <div class="flex items-center justify-between">
-                    <flux:text>{{ __('New members') }}</flux:text>
-                    <flux:icon name="users" class="size-5 text-zinc-400" />
-                </div>
+                    <div class="flex items-center justify-between">
+                        <flux:text>{{ __('New customers') }}</flux:text>
+                        <flux:icon name="users" class="size-5 text-zinc-400" />
+                    </div>
 
-                <flux:heading size="2xl">{{ $this->newMembers }}</flux:heading>
+                    <flux:heading size="2xl">{{ $this->newCustomers }}</flux:heading>
                 </flux:card.body>
             </flux:card>
 
             <flux:card body="divided">
                 <flux:card.body class="space-y-2">
-                <div class="flex items-center justify-between">
-                    <flux:text>{{ __('New contacts') }}</flux:text>
-                    <flux:icon name="user-group" class="size-5 text-zinc-400" />
-                </div>
+                    <div class="flex items-center justify-between">
+                        <flux:text>{{ __('On going projects') }}</flux:text>
+                        <flux:icon name="folder" class="size-5 text-zinc-400" />
+                    </div>
 
-                <flux:heading size="2xl">{{ $this->newContacts }}</flux:heading>
+                    <flux:heading size="2xl">{{ $this->onGoingProjects }}</flux:heading>
                 </flux:card.body>
             </flux:card>
 
             <flux:card body="divided">
                 <flux:card.body class="space-y-2">
-                <div class="flex items-center justify-between">
-                    <flux:text>{{ __('Expiring soon') }}</flux:text>
-                    <flux:icon name="clock" class="size-5 text-zinc-400" />
-                </div>
+                    <div class="flex items-center justify-between">
+                        <flux:text>{{ __('Overdue') }}</flux:text>
+                        <flux:icon name="exclamation-triangle" class="size-5 text-zinc-400" />
+                    </div>
 
-                <flux:heading size="2xl">{{ $this->expiringCount }}</flux:heading>
+                    <flux:heading size="2xl">{{ $this->overdueProjects }}</flux:heading>
                 </flux:card.body>
             </flux:card>
 
             <flux:card body="divided">
                 <flux:card.body class="space-y-2">
-                <div class="flex items-center justify-between">
-                    <flux:text>{{ __('Unread notifications') }}</flux:text>
-                    <flux:icon name="bell" class="size-5 text-zinc-400" />
-                </div>
+                    <div class="flex items-center justify-between">
+                        <flux:text>{{ __('Due this week') }}</flux:text>
+                        <flux:icon name="clock" class="size-5 text-zinc-400" />
+                    </div>
 
-                <flux:heading size="2xl">
-                    <a
-                        href="{{ route('notifications.index') }}"
-                        wire:navigate
-                        class="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
-                    >
-                        {{ $this->unreadNotifications }}
-                    </a>
-                </flux:heading>
+                    <flux:heading size="2xl">{{ $this->dueThisWeek }}</flux:heading>
                 </flux:card.body>
             </flux:card>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-8">
+        <div class="grid gap-6 lg:grid-cols-8">
             <flux:card class="min-h-96 lg:col-span-5" body="divided">
                 <flux:card.header>
-                    <flux:heading size="lg">{{ __('Expiring soon') }}</flux:heading>
+                    <flux:heading size="lg">{{ __('Projects needing attention') }}</flux:heading>
                 </flux:card.header>
 
                 <flux:card.body class="flex flex-col gap-4">
-                @forelse ($this->expiringContacts as $contact)
-                    @php($stakeholder = $contact->stakeholder)
-
-                    <div wire:key="expiring-{{ $contact->id }}" class="flex items-center justify-between gap-4">
-                        @php($reachable = $stakeholder !== null && (! $stakeholder->trashed() || $stakeholder instanceof \App\Models\Organization))
-
+                @forelse ($this->projectsNeedingAttention as $project)
+                    <div wire:key="attention-project-{{ $project->id }}" class="flex items-center justify-between gap-4">
                         <div class="min-w-0">
-                            @if ($reachable)
-                                <a
-                                    href="{{ route('contacts.view', ['stakeholder' => $stakeholder]) }}"
-                                    wire:navigate
-                                    class="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
-                                >
-                                    <flux:heading>{{ $stakeholder->name }}</flux:heading>
-                                </a>
-                            @else
-                                <flux:heading>{{ $stakeholder?->name ?? '—' }}</flux:heading>
-                            @endif
+                            <a
+                                href="{{ route('projects.view', ['project' => $project->slug]) }}"
+                                wire:navigate
+                                class="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
+                            >
+                                <flux:heading class="truncate">{{ $project->title }}</flux:heading>
+                            </a>
 
-                            <flux:text class="text-xs">
-                                {{ $contact->type?->label() ?? '—' }}
-                                @if (filled($contact->code))
-                                    · {{ $contact->code }}
-                                @endif
-                            </flux:text>
+                            <flux:text class="text-xs">{{ $project->customer?->name ?? '—' }}</flux:text>
                         </div>
 
-                        <flux:badge size="sm" color="amber">
-                            {{ $contact->finish_date?->format('Y-m-d') ?? '—' }}
-                        </flux:badge>
+                        <div class="flex shrink-0 items-center gap-3">
+                            <flux:text class="text-xs whitespace-nowrap">
+                                {{ $project->finished_tasks_count }}/{{ $project->total_tasks_count }}
+                            </flux:text>
+
+                            <flux:badge size="sm" :color="$project->mandated_date?->isBefore(today()) ? 'red' : 'amber'">
+                                {{ $project->mandated_date?->format('Y-m-d') }}
+                            </flux:badge>
+                        </div>
                     </div>
                 @empty
                     <flux:text>{{ __('Nothing here yet.') }}</flux:text>
@@ -124,31 +109,21 @@
 
             <flux:card class="min-h-96 lg:col-span-3" body="divided">
                 <flux:card.header>
-                    <flux:heading size="lg">{{ __('Recent members') }}</flux:heading>
+                    <flux:heading size="lg">{{ __('My tasks') }}</flux:heading>
                 </flux:card.header>
 
                 <flux:card.body class="flex flex-col gap-4">
-                @forelse ($this->recentMembers as $member)
-                    <div wire:key="recent-member-{{ $member->id }}" class="flex items-center justify-between gap-3">
-                        <div class="flex min-w-0 items-center gap-3">
-                            <flux:avatar size="sm" :initials="$member->initials()" :src="$member->photo_url" />
+                @forelse ($this->myTasks as $task)
+                    <div wire:key="my-task-{{ $task->id }}" class="min-w-0">
+                        <a
+                            href="{{ route('projects.view', ['project' => $task->project->slug]).'#task-'.$task->id }}"
+                            wire:navigate
+                            class="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
+                        >
+                            <flux:heading class="truncate">{{ $task->title }}</flux:heading>
+                        </a>
 
-                            <div class="min-w-0">
-                                <a
-                                    href="{{ route('members.show', $member) }}"
-                                    wire:navigate
-                                    class="rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900"
-                                >
-                                    <flux:heading class="truncate">{{ $member->name }}</flux:heading>
-                                </a>
-
-                                <flux:text class="text-xs">{{ $member->pivot->role?->label() ?? '—' }}</flux:text>
-                            </div>
-                        </div>
-
-                        <flux:text class="text-xs whitespace-nowrap">
-                            {{ $member->pivot->start_date?->format('Y-m-d') ?? '—' }}
-                        </flux:text>
+                        <flux:text class="text-xs">{{ $task->project->title }}</flux:text>
                     </div>
                 @empty
                     <flux:text>{{ __('Nothing here yet.') }}</flux:text>

@@ -685,5 +685,11 @@
     ":count attachment added to :target|:count attachments added to :target": ":count lampiran ditambahkan ke :target",
     ":count attachment removed from :target|:count attachments removed from :target": ":count lampiran dihapus dari :target",
     "unassigned": "belum ditetapkan",
-    "Attachment changed": "Lampiran berubah"
+    "Attachment changed": "Lampiran berubah",
+    "On going projects": "Proyek berjalan",
+    "Overdue": "Terlambat",
+    "Due this week": "Jatuh tempo minggu ini",
+    "My open tasks": "Tugas saya yang terbuka",
+    "Projects needing attention": "Proyek yang perlu perhatian",
+    "My tasks": "Tugas saya"
 }

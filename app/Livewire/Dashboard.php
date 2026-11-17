@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Livewire;
 
+use App\Enums\OrganizationRelationshipType;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Organization;
 use App\Models\OrganizationRelationship;
 use App\Models\Person;
+use App\Models\Project;
+use App\Models\Task;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -28,6 +31,12 @@ use Livewire\Component;
  * @property-read int $unreadNotifications
  * @property-read Collection<int, OrganizationRelationship> $expiringContacts
  * @property-read Collection<int, Person> $recentMembers
+ * @property-read int $newCustomers
+ * @property-read int $onGoingProjects
+ * @property-read int $overdueProjects
+ * @property-read int $dueThisWeek
+ * @property-read Collection<int, Project> $projectsNeedingAttention
+ * @property-read Collection<int, Task> $myTasks
  */
 class Dashboard extends Component
 {
@@ -124,6 +133,107 @@ class Dashboard extends Component
             ->get();
     }
 
+    /**
+     * Customers whose relationship started inside the range.
+     */
+    #[Computed]
+    public function newCustomers(): int
+    {
+        return $this->contactQuery()
+            ->where('type', OrganizationRelationshipType::Customer)
+            ->count();
+    }
+
+    /**
+     * Projects started inside the range that are neither finished nor canceled.
+     */
+    #[Computed]
+    public function onGoingProjects(): int
+    {
+        return $this->projectQuery()
+            ->whereDate('started_date', '>=', $this->range['start'])
+            ->whereDate('started_date', '<=', $this->range['end'])
+            ->whereDate('started_date', '<=', today())
+            ->whereNull('finished_date')
+            ->whereNull('canceled_date')
+            ->count();
+    }
+
+    /**
+     * Unfinished projects whose mandated date has passed.
+     */
+    #[Computed]
+    public function overdueProjects(): int
+    {
+        return $this->projectQuery()
+            ->whereNotNull('mandated_date')
+            ->whereDate('mandated_date', '>=', $this->range['start'])
+            ->whereDate('mandated_date', '<=', $this->range['end'])
+            ->whereDate('mandated_date', '<', today())
+            ->whereNull('finished_date')
+            ->whereNull('canceled_date')
+            ->count();
+    }
+
+    /**
+     * Unfinished projects whose mandated date falls in the next seven days.
+     */
+    #[Computed]
+    public function dueThisWeek(): int
+    {
+        return $this->projectQuery()
+            ->whereNotNull('mandated_date')
+            ->whereDate('mandated_date', '>=', today())
+            ->whereDate('mandated_date', '<=', today()->addDays(7))
+            ->whereNull('finished_date')
+            ->whereNull('canceled_date')
+            ->count();
+    }
+
+    /**
+     * Projects due within a week or already overdue.
+     *
+     * @return Collection<int, Project>
+     */
+    #[Computed]
+    public function projectsNeedingAttention(): Collection
+    {
+        return $this->projectQuery()
+            ->whereNotNull('mandated_date')
+            ->whereDate('mandated_date', '<=', today()->addDays(7))
+            ->whereNull('finished_date')
+            ->whereNull('canceled_date')
+            ->with('customer')
+            ->withCount([
+                'tasks as total_tasks_count',
+                'tasks as finished_tasks_count' => fn (Builder $query): Builder => $query->whereNotNull('finished_at'),
+            ])
+            ->orderBy('mandated_date')
+            ->limit(5)
+            ->get();
+    }
+
+    /**
+     * Open tasks assigned to the signed-in person.
+     *
+     * @return Collection<int, Task>
+     */
+    #[Computed]
+    public function myTasks(): Collection
+    {
+        $person = Auth::user()?->person;
+
+        if (! $person instanceof Person) {
+            return new Collection;
+        }
+
+        return $this->openTaskQuery($person)
+            ->with('project')
+            ->latest('id')
+            ->limit(5)
+            ->get();
+    }
+
     public function render(): View
     {
         $timezone = $this->userTimezone();
@@ -134,6 +244,30 @@ class Dashboard extends Component
             'today' => CarbonImmutable::now($timezone)->toDateString(),
             'timezone' => $timezone,
         ])->title(__('Home'));
+    }
+
+    /**
+     * @return Builder<Project>
+     */
+    private function projectQuery(): Builder
+    {
+        return Project::query()->where('owner_organization_id', $this->requireOrganization()->getKey());
+    }
+
+    /**
+     * @return Builder<Task>
+     */
+    private function openTaskQuery(Person $person): Builder
+    {
+        return Task::query()
+            ->where('assignee_id', $person->getKey())
+            ->whereNull('finished_at')
+            ->whereNull('canceled_at')
+            ->whereHas('project', fn (Builder $query): Builder => $query
+                ->where('owner_organization_id', $this->requireOrganization()->getKey())
+                ->whereBetween('mandated_date', [$this->range['start'], $this->range['end']])
+                ->whereNull('finished_date')
+                ->whereNull('canceled_date'));
     }
 
     /**
