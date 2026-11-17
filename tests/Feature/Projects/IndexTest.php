@@ -9,6 +9,7 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -83,4 +84,32 @@ it('lists only the current tenant kinds in the create form', function (): void {
     Livewire::test(Index::class)
         ->assertSee('Mine kind')
         ->assertDontSee('Foreign kind');
+});
+
+it('lets members create projects only for themselves', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Member create']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $customer = contactOrganization($this->tenant);
+
+    $member = actingAsMember($this->tenant, Role::Member);
+    $other = User::factory()->asMemberOf($this->tenant)->create();
+
+    Livewire::test(Index::class)
+        ->set('createKindId', $kind->getKey())
+        ->set('createCustomerId', $customer->getKey())
+        ->set('createAssigneeId', $other->person?->getKey())
+        ->call('create')
+        ->assertHasErrors('createAssigneeId');
+
+    expect(Project::query()->count())->toBe(0);
+
+    Livewire::test(Index::class)
+        ->set('createKindId', $kind->getKey())
+        ->set('createCustomerId', $customer->getKey())
+        ->set('createAssigneeId', $member->person?->getKey())
+        ->call('create')
+        ->assertHasNoErrors();
+
+    expect(Project::query()->sole()->assignee_id)->toBe($member->person?->getKey());
 });

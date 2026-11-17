@@ -92,3 +92,30 @@ it('does not stream another tenant attachment', function () {
 
     expect($member)->not->toBeNull();
 });
+
+it('returns not found for an archived project attachment', function () {
+    /** @var TestCase $this */
+    Storage::fake();
+
+    $tenant = Organization::factory()->asRootTenant()->create();
+    actingAsMember($tenant, Role::Member);
+
+    $project = Project::factory()->create([
+        'owner_organization_id' => $tenant->getKey(),
+        'kind_id' => ProjectKind::factory(),
+        'customer_id' => contactOrganization($tenant)->getKey(),
+    ]);
+
+    $path = 'attachments/archived.pdf';
+    Storage::disk()->put($path, 'secret');
+
+    Attachment::factory()->create([
+        'attachable_type' => $project->getMorphClass(),
+        'attachable_id' => $project->getKey(),
+        'path' => $path,
+    ]);
+
+    $project->delete();
+
+    get(route('uploads', ['path' => $path]))->assertNotFound();
+});

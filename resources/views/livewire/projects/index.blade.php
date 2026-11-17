@@ -106,9 +106,11 @@
                                 <flux:menu.item icon="eye" :href="route('projects.view', ['project' => $project->slug])" wire:navigate>
                                     {{ __('View project') }}
                                 </flux:menu.item>
-                                <flux:menu.item variant="danger" icon="archive-box" wire:click="confirmArchive({{ $project->id }})">
-                                    {{ __('Archive project') }}
-                                </flux:menu.item>
+                                @if ($this->isManager || $project->assignee_id === auth()->user()?->person?->getKey())
+                                    <flux:menu.item variant="danger" icon="archive-box" wire:click="confirmArchive({{ $project->id }})">
+                                        {{ __('Archive project') }}
+                                    </flux:menu.item>
+                                @endif
                             </flux:menu>
                         </flux:dropdown>
                     </flux:table.cell>

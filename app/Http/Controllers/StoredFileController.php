@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attachment;
 use App\Models\Project;
+use App\Models\Task;
 use App\Support\CurrentOrganization;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
@@ -26,10 +27,15 @@ class StoredFileController extends Controller
 
             abort_if($organization === null || $attachment === null, 404);
 
-            $attachable = $attachment->attachable;
-            $ownerId = $attachable instanceof Project
-                ? $attachable->owner_organization_id
-                : $attachable->project->owner_organization_id;
+            $projectId = match ($attachment->attachable_type) {
+                (new Project)->getMorphClass() => Project::query()->whereKey($attachment->attachable_id)->value('id'),
+                (new Task)->getMorphClass() => Task::query()->whereKey($attachment->attachable_id)->value('project_id'),
+                default => null,
+            };
+
+            $ownerId = $projectId === null
+                ? null
+                : Project::query()->whereKey($projectId)->value('owner_organization_id');
 
             abort_unless($ownerId === $organization->getKey(), 404);
         }

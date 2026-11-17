@@ -12,6 +12,7 @@ use App\Models\Organization;
 use App\Models\Person;
 use App\Models\Project;
 use App\Models\ProjectKind;
+use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -217,6 +218,12 @@ class Index extends Component
 
         abort_if($kind === null || $customer === null || $assignee === null, 422);
 
+        if (! $this->isManager && $assignee->getKey() !== Auth::user()?->person?->getKey()) {
+            $this->addError('createAssigneeId', __('Members can only create projects assigned to themselves.'));
+
+            return;
+        }
+
         $project = $createProject->handle($organization, $kind, $customer, $assignee, [
             'summary' => $this->createSummary === '' ? null : $this->createSummary,
             'mandated_date' => $this->createMandatedDate,
@@ -283,6 +290,13 @@ class Index extends Component
         return $this->isManager || $project->assignee_id === Auth::user()?->person?->getKey();
     }
 
+    private function todayDate(): string
+    {
+        $user = Auth::user();
+
+        return CarbonImmutable::now($user->timezone ?? 'UTC')->toDateString();
+    }
+
     /**
      * Apply the derived status filter.
      *
@@ -295,11 +309,11 @@ class Index extends Component
             ProjectStatus::Canceled => $query->whereNotNull('canceled_date'),
             ProjectStatus::Finished => $query->whereNull('canceled_date')->whereNotNull('finished_date'),
             ProjectStatus::NotStarted => $query->whereNull('canceled_date')->whereNull('started_date'),
-            ProjectStatus::Scheduled => $query->whereNull('canceled_date')->whereDate('started_date', '>', today()),
+            ProjectStatus::Scheduled => $query->whereNull('canceled_date')->whereDate('started_date', '>', $this->todayDate()),
             ProjectStatus::OnGoing => $query
                 ->whereNull('canceled_date')
                 ->whereNull('finished_date')
-                ->whereDate('started_date', '<=', today()),
+                ->whereDate('started_date', '<=', $this->todayDate()),
             null => $query,
         };
     }

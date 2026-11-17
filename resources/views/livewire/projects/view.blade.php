@@ -9,7 +9,9 @@
     </x-slot:subheading>
 
     <x-slot:actions>
-        <flux:button icon="pencil-square" wire:click="openEdit">{{ __('Edit project') }}</flux:button>
+        @if ($this->canManage && ! $project->status->isCanceled())
+            <flux:button icon="pencil-square" wire:click="openEdit">{{ __('Edit project') }}</flux:button>
+        @endif
 
         @if ($this->canFinish)
             <flux:button variant="primary" icon="check" wire:click="finishProject">{{ __('Finish') }}</flux:button>
@@ -18,12 +20,16 @@
         <flux:dropdown align="end">
             <flux:button icon="ellipsis-horizontal" square :aria-label="__('More actions')" />
             <flux:menu>
-                <flux:menu.item icon="paper-clip" wire:click="$dispatch('add-attachments', { type: 'project', id: {{ $project->id }} })">{{ __('Add attachments') }}</flux:menu.item>
+                @if ($this->canManage && ! $project->status->isCanceled())
+                    <flux:menu.item icon="paper-clip" wire:click="$dispatch('add-attachments', { type: 'project', id: {{ $project->id }} })">{{ __('Add attachments') }}</flux:menu.item>
+                @endif
 
-                @if (! $project->status->isCanceled())
+                @if ($this->canManage && ! $project->status->isCanceled() && ! $project->status->isFinished())
                     <flux:menu.item icon="no-symbol" wire:click="confirmCancelProject">{{ __('Cancel project') }}</flux:menu.item>
                 @endif
-                <flux:menu.item variant="danger" icon="archive-box" wire:click="confirmArchive">{{ __('Archive project') }}</flux:menu.item>
+                @if ($this->canManage)
+                    <flux:menu.item variant="danger" icon="archive-box" wire:click="confirmArchive">{{ __('Archive project') }}</flux:menu.item>
+                @endif
             </flux:menu>
         </flux:dropdown>
     </x-slot:actions>

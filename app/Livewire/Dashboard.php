@@ -153,7 +153,7 @@ class Dashboard extends Component
         return $this->projectQuery()
             ->whereDate('started_date', '>=', $this->range['start'])
             ->whereDate('started_date', '<=', $this->range['end'])
-            ->whereDate('started_date', '<=', today())
+            ->whereDate('started_date', '<=', $this->todayDate())
             ->whereNull('finished_date')
             ->whereNull('canceled_date')
             ->count();
@@ -169,7 +169,7 @@ class Dashboard extends Component
             ->whereNotNull('mandated_date')
             ->whereDate('mandated_date', '>=', $this->range['start'])
             ->whereDate('mandated_date', '<=', $this->range['end'])
-            ->whereDate('mandated_date', '<', today())
+            ->whereDate('mandated_date', '<', $this->todayDate())
             ->whereNull('finished_date')
             ->whereNull('canceled_date')
             ->count();
@@ -183,8 +183,8 @@ class Dashboard extends Component
     {
         return $this->projectQuery()
             ->whereNotNull('mandated_date')
-            ->whereDate('mandated_date', '>=', today())
-            ->whereDate('mandated_date', '<=', today()->addDays(7))
+            ->whereDate('mandated_date', '>=', $this->todayDate())
+            ->whereDate('mandated_date', '<=', $this->todayDate(7))
             ->whereNull('finished_date')
             ->whereNull('canceled_date')
             ->count();
@@ -200,7 +200,7 @@ class Dashboard extends Component
     {
         return $this->projectQuery()
             ->whereNotNull('mandated_date')
-            ->whereDate('mandated_date', '<=', today()->addDays(7))
+            ->whereDate('mandated_date', '<=', $this->todayDate(7))
             ->whereNull('finished_date')
             ->whereNull('canceled_date')
             ->with('customer')
@@ -281,7 +281,7 @@ class Dashboard extends Component
             ->whereDate('organization_relationships.start_date', '<=', $this->range['end'])
             ->where(fn ($query) => $query
                 ->whereNull('organization_relationships.finish_date')
-                ->orWhereDate('organization_relationships.finish_date', '>=', today()));
+                ->orWhereDate('organization_relationships.finish_date', '>=', $this->todayDate()));
     }
 
     /**
@@ -309,7 +309,7 @@ class Dashboard extends Component
             ->whereDate('finish_date', '<=', $this->range['end'])
             ->where(fn ($query) => $query
                 ->whereNull('start_date')
-                ->orWhereDate('start_date', '<=', today()));
+                ->orWhereDate('start_date', '<=', $this->todayDate()));
     }
 
     /**
@@ -354,6 +354,11 @@ class Dashboard extends Component
         [$year, $month, $day] = array_map('intval', explode('-', $value));
 
         return checkdate($month, $day, $year) ? $value : null;
+    }
+
+    private function todayDate(int $addDays = 0): string
+    {
+        return CarbonImmutable::now($this->userTimezone())->addDays($addDays)->toDateString();
     }
 
     private function userTimezone(): string

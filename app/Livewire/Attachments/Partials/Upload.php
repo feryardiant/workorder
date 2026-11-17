@@ -52,6 +52,8 @@ class Upload extends Component
 
         abort_if($attachable instanceof Task && $attachable->isSubTask(), 403);
 
+        $this->assertWritable($attachable);
+
         $this->attachableType = $attachable->getMorphClass();
         $this->attachableId = $attachable->getKey();
         $this->uploads = [];
@@ -107,6 +109,8 @@ class Upload extends Component
 
         abort_if($attachable === null, 422);
 
+        $this->assertWritable($attachable);
+
         $count = 0;
 
         foreach ($this->uploads as $upload) {
@@ -143,6 +147,12 @@ class Upload extends Component
 
         abort_if($attachment === null, 404);
 
+        $attachable = $this->attachable;
+
+        abort_if($attachable === null, 404);
+
+        $this->assertWritable($attachable);
+
         $fileStorage->delete($attachment->path);
 
         $attachment->delete();
@@ -166,6 +176,15 @@ class Upload extends Component
     {
         /** @disregard P1013 */
         return view('livewire.attachments.partials.upload');
+    }
+
+    private function assertWritable(Project|Task $attachable): void
+    {
+        abort_if($attachable->status->isCanceled() || $attachable->status->isFinished(), 403);
+
+        if ($attachable instanceof Task) {
+            abort_if($attachable->isDisabled() || $attachable->status->isCompleted(), 403);
+        }
     }
 
     private function organizationFor(Project|Task $attachable): Organization

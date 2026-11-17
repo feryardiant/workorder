@@ -36,6 +36,7 @@ use Livewire\Component;
  * @property-read Collection<int, AuditLog> $timeline
  * @property-read Collection<int, Attachment> $projectAttachments
  * @property-read bool $canFinish
+ * @property-read bool $canManage
  */
 class View extends Component
 {
@@ -197,7 +198,7 @@ class View extends Component
 
     public function openEdit(): void
     {
-        abort_unless($this->canManageProject() && ! $this->project->status->isCanceled(), 403);
+        abort_unless($this->canManage && ! $this->project->status->isCanceled(), 403);
 
         $this->fillEditForm();
         $this->showEdit = true;
@@ -205,7 +206,7 @@ class View extends Component
 
     public function saveProject(): void
     {
-        abort_unless($this->canManageProject() && ! $this->project->status->isCanceled(), 403);
+        abort_unless($this->canManage && ! $this->project->status->isCanceled(), 403);
 
         $this->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -284,7 +285,7 @@ class View extends Component
         $task->update(['started_at' => $this->now()]);
 
         if ($task->project->status->isNotStarted() || $task->project->status->isScheduled()) {
-            $task->project->update(['started_date' => today()]);
+            $task->project->update(['started_date' => $this->todayDate()]);
             $this->project->refresh();
         }
 
@@ -412,7 +413,7 @@ class View extends Component
 
     public function archive(): void
     {
-        abort_unless($this->canManageProject(), 403);
+        abort_unless($this->canManage, 403);
 
         event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ['action' => 'archived']));
 
@@ -453,7 +454,8 @@ class View extends Component
     /**
      * Resolve a task that belongs to the project.
      */
-    private function canManageProject(): bool
+    #[Computed]
+    public function canManage(): bool
     {
         return $this->isManager || $this->project->assignee_id === Auth::user()?->person?->getKey();
     }

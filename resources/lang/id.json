@@ -710,5 +710,6 @@
     "This project cannot be canceled.": "Proyek ini tidak dapat dibatalkan.",
     "This task cannot be canceled.": "Tugas ini tidak dapat dibatalkan.",
     "Title": "Judul",
-    "Unassigned": "Belum ditetapkan"
+    "Unassigned": "Belum ditetapkan",
+    "Members can only create projects assigned to themselves.": "Anggota hanya dapat membuat proyek untuk dirinya sendiri."
 }

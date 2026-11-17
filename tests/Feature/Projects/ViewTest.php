@@ -10,6 +10,7 @@ use App\Models\Attachment;
 use App\Models\Organization;
 use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -257,4 +258,21 @@ it('rejects state changes on finished and canceled records', function (): void {
     Livewire::test(View::class, ['project' => $project->fresh()])
         ->call('openEdit')
         ->assertForbidden();
+});
+
+it('starts the project on the local date of the user', function (): void {
+    /** @var TestCase $this */
+    $this->travelTo(CarbonImmutable::parse('2026-11-18 23:30:00'));
+
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Timezone']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+
+    $user = auth()->user();
+    $user->update(['timezone' => 'Pacific/Kiritimati']);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $project->tasks->first()->getKey());
+
+    expect($project->refresh()->started_date?->toDateString())->toBe('2026-11-19');
 });

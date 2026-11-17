@@ -84,3 +84,17 @@ it('rejects oversized files and unsupported types', function (): void {
 
     expect($project->attachments()->count())->toBe(0);
 });
+
+it('refuses uploads and removals on a canceled project', function (): void {
+    /** @var TestCase $this */
+    Storage::fake();
+
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Canceled uploads']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $project->update(['canceled_date' => today()]);
+
+    Livewire::test(Upload::class)
+        ->call('open', 'project', $project->getKey())
+        ->assertForbidden();
+});

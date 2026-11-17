@@ -23,7 +23,7 @@ final class CancelTask
             throw ValidationException::withMessages(['reason' => __('Sub-tasks cannot be canceled.')]);
         }
 
-        if ($task->status->isCompleted()) {
+        if ($task->isDisabled() || $task->status->isCompleted()) {
             throw ValidationException::withMessages(['reason' => __('This task cannot be canceled.')]);
         }
 
