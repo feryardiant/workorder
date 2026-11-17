@@ -1,9 +1,11 @@
 @props(['address'])
 
-<flux:card class="max-w-lg flex flex-col gap-4">
-    <flux:heading>{{ __('Address') }}</flux:heading>
-    <flux:separator variant="subtle" />
+<flux:card class="max-w-lg" body="divided">
+    <flux:card.header>
+        <flux:heading>{{ __('Address') }}</flux:heading>
+    </flux:card.header>
 
+    <flux:card.body class="flex flex-col gap-4">
     <div>
         <flux:text>{{ __('Address line') }}</flux:text>
         <flux:heading>{{ $address->line ?: '—' }}</flux:heading>
@@ -32,4 +34,5 @@
         <flux:text>{{ __('Postal code') }}</flux:text>
         <flux:heading>{{ $address->postal_code ?: '—' }}</flux:heading>
     </div>
+    </flux:card.body>
 </flux:card>

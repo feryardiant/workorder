@@ -191,14 +191,12 @@
         </div>
 
         <aside class="flex flex-col gap-4 w-full md:w-3/8">
-            <flux:card>
-                @if (filled($project->summary))
-                    <flux:card.header>
+            <flux:card body="divided">
+                <flux:card.body class="flex flex-col gap-4">
+                    @if (filled($project->summary))
                         <flux:text class="text-base/7">{{ $project->summary }}</flux:text>
-                    </flux:card.header>
-                @endif
+                    @endif
 
-                <flux:card.body>
                     @if ($assignees->isNotEmpty())
                         <flux:avatar.group>
                             @foreach ($assignees as $person)

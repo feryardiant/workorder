@@ -71,65 +71,77 @@
         @endif
     </x-slot:actions>
 
-    <flux:card class="max-w-lg flex flex-col gap-4">
-        <div>
-            <flux:text>{{ __('Name') }}</flux:text>
-            <flux:heading>{{ $person->name }}</flux:heading>
+    <div class="flex gap-6">
+        <div class="flex flex-col gap-4 w-full md:w-5/8">
+            {{--  --}}
         </div>
 
-        <div>
-            <flux:text>{{ __('Email') }}</flux:text>
-            <flux:heading>{{ $person->user?->email ?? __('No login credential') }}</flux:heading>
-        </div>
+        <div class="flex flex-col gap-4 w-full md:w-3/8">
+            <flux:card class="max-w-lg" body="divided">
+                <flux:card.body class="flex flex-col gap-4">
+                <div>
+                    <flux:text>{{ __('Name') }}</flux:text>
+                    <flux:heading>{{ $person->name }}</flux:heading>
+                </div>
 
-        <div>
-            <flux:text>{{ __('Role') }}</flux:text>
-            <flux:heading>{{ $role?->label() ?? '—' }}</flux:heading>
-        </div>
+                <div>
+                    <flux:text>{{ __('Email') }}</flux:text>
+                    <flux:heading>{{ $person->user?->email ?? __('No login credential') }}</flux:heading>
+                </div>
 
-        @if (\App\Support\Feature\ContactGender::enabled($organization))
-            <div>
-                <flux:text>{{ __('Gender') }}</flux:text>
-                <flux:heading>{{ $person->gender?->label() ?? '—' }}</flux:heading>
-            </div>
+                <div>
+                    <flux:text>{{ __('Role') }}</flux:text>
+                    <flux:heading>{{ $role?->label() ?? '—' }}</flux:heading>
+                </div>
+
+                @if (\App\Support\Feature\ContactGender::enabled($organization))
+                    <div>
+                        <flux:text>{{ __('Gender') }}</flux:text>
+                        <flux:heading>{{ $person->gender?->label() ?? '—' }}</flux:heading>
+                    </div>
+                @endif
+
+                <div>
+                    <flux:text>{{ __('Joined at') }}</flux:text>
+                    <flux:heading><x-local-time :date="$joinedAt" /></flux:heading>
+                </div>
+                </flux:card.body>
+            </flux:card>
+
+            @php($address = $person->addresses()->first())
+
+            @if ($address !== null)
+                <x-address-summary :address="$address" />
+            @endif
+
+            <x-relationship-history :periods="$this->history" />
+        </div>
+    </div>
+
+    <div>
+        @if ($canManage)
+            <livewire:members.edit :person="$person" />
         @endif
 
-        <div>
-            <flux:text>{{ __('Joined at') }}</flux:text>
-            <flux:heading><x-local-time :date="$joinedAt" /></flux:heading>
-        </div>
-    </flux:card>
+        <x-modal
+            wire:model.self="showRoleModal"
+            :title="$this->roleChangeIsPromotion ? __('Promote member') : __('Demote member')"
+            :subtitle="$this->roleChangeIsPromotion ? __('Promote :name to Admin?', ['name' => $person->name]) : __('Demote :name to Member?', ['name' => $person->name])"
+        >
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
 
-    @php($address = $person->addresses()->first())
-
-    @if ($address !== null)
-        <x-address-summary :address="$address" />
-    @endif
-
-    <x-relationship-history :periods="$this->history" />
-
-    @if ($canManage)
-        <livewire:members.edit :person="$person" />
-    @endif
-
-    <x-modal
-        wire:model.self="showRoleModal"
-        :title="$this->roleChangeIsPromotion ? __('Promote member') : __('Demote member')"
-        :subtitle="$this->roleChangeIsPromotion ? __('Promote :name to Admin?', ['name' => $person->name]) : __('Demote :name to Member?', ['name' => $person->name])"
-    >
-        <div class="space-y-6">
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
-
-                <flux:button
-                    :variant="$this->roleChangeIsPromotion ? 'primary' : 'danger'"
-                    wire:click="changeRoleConfirmed"
-                >
-                    {{ $this->roleChangeIsPromotion ? __('Promote admin') : __('Demote admin') }}
-                </flux:button>
+                    <flux:button
+                        :variant="$this->roleChangeIsPromotion ? 'primary' : 'danger'"
+                        wire:click="changeRoleConfirmed"
+                    >
+                        {{ $this->roleChangeIsPromotion ? __('Promote admin') : __('Demote admin') }}
+                    </flux:button>
+                </div>
             </div>
-        </div>
-    </x-modal>
+        </x-modal>
+    </div>
 </x-page>

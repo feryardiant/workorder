@@ -25,34 +25,41 @@
         </x-slot:actions>
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <flux:card class="space-y-2">
+            <flux:card body="divided">
+                <flux:card.body class="space-y-2">
                 <div class="flex items-center justify-between">
                     <flux:text>{{ __('New members') }}</flux:text>
                     <flux:icon name="users" class="size-5 text-zinc-400" />
                 </div>
 
                 <flux:heading size="2xl">{{ $this->newMembers }}</flux:heading>
+                </flux:card.body>
             </flux:card>
 
-            <flux:card class="space-y-2">
+            <flux:card body="divided">
+                <flux:card.body class="space-y-2">
                 <div class="flex items-center justify-between">
                     <flux:text>{{ __('New contacts') }}</flux:text>
                     <flux:icon name="user-group" class="size-5 text-zinc-400" />
                 </div>
 
                 <flux:heading size="2xl">{{ $this->newContacts }}</flux:heading>
+                </flux:card.body>
             </flux:card>
 
-            <flux:card class="space-y-2">
+            <flux:card body="divided">
+                <flux:card.body class="space-y-2">
                 <div class="flex items-center justify-between">
                     <flux:text>{{ __('Expiring soon') }}</flux:text>
                     <flux:icon name="clock" class="size-5 text-zinc-400" />
                 </div>
 
                 <flux:heading size="2xl">{{ $this->expiringCount }}</flux:heading>
+                </flux:card.body>
             </flux:card>
 
-            <flux:card class="space-y-2">
+            <flux:card body="divided">
+                <flux:card.body class="space-y-2">
                 <div class="flex items-center justify-between">
                     <flux:text>{{ __('Unread notifications') }}</flux:text>
                     <flux:icon name="bell" class="size-5 text-zinc-400" />
@@ -67,14 +74,17 @@
                         {{ $this->unreadNotifications }}
                     </a>
                 </flux:heading>
+                </flux:card.body>
             </flux:card>
         </div>
 
         <div class="grid gap-4 lg:grid-cols-8">
-            <flux:card class="min-h-96 flex flex-col gap-4 lg:col-span-5">
-                <flux:heading size="lg">{{ __('Expiring soon') }}</flux:heading>
-                <flux:separator variant="subtle" />
+            <flux:card class="min-h-96 lg:col-span-5" body="divided">
+                <flux:card.header>
+                    <flux:heading size="lg">{{ __('Expiring soon') }}</flux:heading>
+                </flux:card.header>
 
+                <flux:card.body class="flex flex-col gap-4">
                 @forelse ($this->expiringContacts as $contact)
                     @php($stakeholder = $contact->stakeholder)
 
@@ -109,12 +119,15 @@
                 @empty
                     <flux:text>{{ __('Nothing here yet.') }}</flux:text>
                 @endforelse
+                </flux:card.body>
             </flux:card>
 
-            <flux:card class="min-h-96 flex flex-col gap-4 lg:col-span-3">
-                <flux:heading size="lg">{{ __('Recent members') }}</flux:heading>
-                <flux:separator variant="subtle" />
+            <flux:card class="min-h-96 lg:col-span-3" body="divided">
+                <flux:card.header>
+                    <flux:heading size="lg">{{ __('Recent members') }}</flux:heading>
+                </flux:card.header>
 
+                <flux:card.body class="flex flex-col gap-4">
                 @forelse ($this->recentMembers as $member)
                     <div wire:key="recent-member-{{ $member->id }}" class="flex items-center justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-3">
@@ -140,6 +153,7 @@
                 @empty
                     <flux:text>{{ __('Nothing here yet.') }}</flux:text>
                 @endforelse
+                </flux:card.body>
             </flux:card>
         </div>
     </x-page>

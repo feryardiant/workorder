@@ -57,17 +57,18 @@
             />
 
             @unless ($this->sharedFieldsLocked)
-                <flux:card class="flex flex-col gap-4">
-                    <div>
+                <flux:card body="divided">
+                    <flux:card.header>
                         <flux:heading>{{ __('Address') }}</flux:heading>
-                        <flux:separator variant="subtle" class="mt-2" />
-                    </div>
+                    </flux:card.header>
 
-                    <livewire:address wire:model="address" />
+                    <flux:card.body class="flex flex-col gap-4">
+                        <livewire:address wire:model="address" />
 
-                    @foreach (['line', 'rt', 'rw', 'postal_code', 'province_code', 'regency_code', 'district_code', 'village_code'] as $field)
-                        <flux:error :name="'address.'.$field" />
-                    @endforeach
+                        @foreach (['line', 'rt', 'rw', 'postal_code', 'province_code', 'regency_code', 'district_code', 'village_code'] as $field)
+                            <flux:error :name="'address.'.$field" />
+                        @endforeach
+                    </flux:card.body>
                 </flux:card>
             @endunless
 
@@ -123,12 +124,12 @@
             />
 
             @if ($this->isOrganizationType)
-                <flux:card class="flex flex-col gap-4">
-                    <div>
+                <flux:card body="divided">
+                    <flux:card.header>
                         <flux:heading>{{ __('Contact person') }}</flux:heading>
-                        <flux:separator variant="subtle" class="mt-2" />
-                    </div>
+                    </flux:card.header>
 
+                    <flux:card.body class="flex flex-col gap-4">
                     <flux:input
                         wire:model="contact_name"
                         type="text"
@@ -156,6 +157,7 @@
                         :label="__('Summary')"
                         :disabled="$this->sharedFieldsLocked"
                     />
+                    </flux:card.body>
                 </flux:card>
             @endif
         </div>

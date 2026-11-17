@@ -7,9 +7,11 @@
 
     <div class="flex gap-6">
         <div class="flex flex-col gap-4 w-full md:w-5/8">
-            <flux:card class="flex flex-col gap-4">
-                <flux:input wire:model="title" :label="__('Title')" :disabled="! $this->isManager" />
-                <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" :disabled="! $this->isManager" />
+            <flux:card body="divided">
+                <flux:card.body class="flex flex-col gap-4">
+                    <flux:input wire:model="title" :label="__('Title')" :disabled="! $this->isManager" />
+                    <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" :disabled="! $this->isManager" />
+                </flux:card.body>
             </flux:card>
 
             <flux:card body="divided">
@@ -84,7 +86,7 @@
         </div>
 
         <div class="flex flex-col gap-4 w-full md:w-3/8">
-            <flux:card>
+            <flux:card body="divided">
                 <flux:card.header>
                     <flux:heading size="sm">{{ __('Project histories') }}</flux:heading>
                 </flux:card.header>
