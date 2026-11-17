@@ -35,6 +35,7 @@ enum AuditEvent: string
     case ProjectCanceled = 'project.canceled';
     case TaskChanged = 'task.changed';
     case TaskCanceled = 'task.canceled';
+    case AttachmentChanged = 'attachment.changed';
 
     public function label(): string
     {
@@ -60,6 +61,7 @@ enum AuditEvent: string
             self::ProjectCanceled => __('Project canceled'),
             self::TaskChanged => __('Task changed'),
             self::TaskCanceled => __('Task canceled'),
+            self::AttachmentChanged => __('Attachment changed'),
         };
     }
 }

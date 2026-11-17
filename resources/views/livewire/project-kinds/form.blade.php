@@ -89,7 +89,7 @@
                     <flux:heading size="sm">{{ __('Project histories') }}</flux:heading>
                 </flux:card.header>
 
-                <flux:card.body>
+                <flux:card.body class="max-h-96 overflow-y-auto">
                     @if ($timeline->isEmpty())
                         <flux:text class="text-sm">{{ __('No histories yet.') }}</flux:text>
                     @else

@@ -178,11 +178,13 @@
         </div>
     </x-settings.layout>
 
+        <div>
     <livewire:settings.organizations.leave />
 
-    <livewire:settings.organizations.remove />
+        <livewire:settings.organizations.remove />
 
-    <livewire:settings.organizations.transfer-approval />
+        <livewire:settings.organizations.transfer-approval />
 
-    <livewire:settings.organizations.create />
+        <livewire:settings.organizations.create />
+    </div>
 </x-page>

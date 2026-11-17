@@ -37,7 +37,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property-read TaskStatus $status
  * @property-read Project $project
  * @property-read ?Task $parent
- * @property-read Organization $contact
+ * @property-read ?Organization $contact
  * @property-read ?Person $assignee
  * @property-read Collection<int, Task> $subTasks
  * @property-read Collection<int, Attachment> $attachments

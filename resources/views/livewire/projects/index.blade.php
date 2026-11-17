@@ -123,65 +123,67 @@
         </flux:table.rows>
     </flux:table>
 
-    <x-modal wire:model.self="showCreate" :title="__('New project')">
-        <div class="flex flex-col gap-4">
-            <x-ui.select wire:model="createKindId" :label="__('Kind')" :placeholder="__('Choose a kind...')" :empty="__('No kinds found')">
-                @foreach ($kinds as $kind)
-                    <x-ui.select.option value="{{ $kind->id }}">{{ $kind->title }}</x-ui.select.option>
-                @endforeach
-            </x-ui.select>
+    <div>
+        <x-modal wire:model.self="showCreate" :title="__('New project')">
+            <div class="flex flex-col gap-4">
+                <x-ui.select wire:model="createKindId" :label="__('Kind')" :placeholder="__('Choose a kind...')" :empty="__('No kinds found')">
+                    @foreach ($kinds as $kind)
+                        <x-ui.select.option value="{{ $kind->id }}">{{ $kind->title }}</x-ui.select.option>
+                    @endforeach
+                </x-ui.select>
 
-            <x-ui.select wire:model="createCustomerId" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
-                @foreach ($customers as $customer)
-                    <x-ui.select.option value="{{ $customer->id }}" icon="building-office">{{ $customer->name }}</x-ui.select.option>
-                @endforeach
-            </x-ui.select>
+                <x-ui.select wire:model="createCustomerId" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
+                    @foreach ($customers as $customer)
+                        <x-ui.select.option value="{{ $customer->id }}" icon="building-office">{{ $customer->name }}</x-ui.select.option>
+                    @endforeach
+                </x-ui.select>
 
-            @if (blank($createCustomerId))
-                <flux:button
-                    size="sm"
-                    variant="subtle"
-                    icon="plus"
-                    wire:click="$dispatch('create-contact', { role: 'customer' })"
-                >
-                    {{ __('Add customer') }}
-                </flux:button>
-            @endif
+                @if (blank($createCustomerId))
+                    <flux:button
+                        size="sm"
+                        variant="subtle"
+                        icon="plus"
+                        wire:click="$dispatch('create-contact', { role: 'customer' })"
+                    >
+                        {{ __('Add customer') }}
+                    </flux:button>
+                @endif
 
-            <x-ui.select wire:model="createAssigneeId" :label="__('Assignee')" :placeholder="__('Choose an assignee...')" :empty="__('No members found')">
-                @foreach ($members as $member)
-                    <x-ui.select.option value="{{ $member->id }}" icon="user">{{ $member->name }}</x-ui.select.option>
-                @endforeach
-            </x-ui.select>
+                <x-ui.select wire:model="createAssigneeId" :label="__('Assignee')" :placeholder="__('Choose an assignee...')" :empty="__('No members found')">
+                    @foreach ($members as $member)
+                        <x-ui.select.option value="{{ $member->id }}" icon="user">{{ $member->name }}</x-ui.select.option>
+                    @endforeach
+                </x-ui.select>
 
-            <flux:textarea wire:model="createSummary" :label="__('Summary')" rows="3" />
+                <flux:textarea wire:model="createSummary" :label="__('Summary')" rows="3" />
 
-            <x-ui.date-picker wire:model="createMandatedDate" :label="__('Mandated date')" clearable with-today />
-            <x-ui.date-picker wire:model="createStartedDate" :label="__('Start date')" clearable with-today />
+                <x-ui.date-picker wire:model="createMandatedDate" :label="__('Mandated date')" clearable with-today />
+                <x-ui.date-picker wire:model="createStartedDate" :label="__('Start date')" clearable with-today />
 
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+
+                    <flux:button variant="primary" wire:click="create">{{ __('Create project') }}</flux:button>
+                </div>
+            </div>
+        </x-modal>
+
+        <x-modal
+            wire:model.self="showArchive"
+            :title="__('Archive project')"
+            :subtitle="__('The project is removed from lists but kept.')"
+        >
             <div class="flex items-center justify-between">
                 <flux:modal.close>
                     <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
 
-                <flux:button variant="primary" wire:click="create">{{ __('Create project') }}</flux:button>
+                <flux:button variant="danger" wire:click="archive">{{ __('Archive') }}</flux:button>
             </div>
-        </div>
-    </x-modal>
+        </x-modal>
 
-    <x-modal
-        wire:model.self="showArchive"
-        :title="__('Archive project')"
-        :subtitle="__('The project is removed from lists but kept.')"
-    >
-        <div class="flex items-center justify-between">
-            <flux:modal.close>
-                <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-            </flux:modal.close>
-
-            <flux:button variant="danger" wire:click="archive">{{ __('Archive') }}</flux:button>
-        </div>
-    </x-modal>
-
-    <livewire:contacts.edit />
+        <livewire:contacts.edit />
+    </div>
 </x-page>

@@ -32,6 +32,7 @@
         <div class="flex flex-col gap-4 w-full md:w-5/8">
             @foreach ($tasks as $task)
                 @php($disabled = $task->isDisabled() || $task->status->isCanceled())
+                @php($locked = $disabled || $task->status->isCompleted())
 
                 <flux:card variant="muted" body="divided" id="task-{{ $task->id }}" wire:key="task-{{ $task->id }}">
                     {{-- flex items-start justify-between gap-3 --}}
@@ -55,7 +56,7 @@
                         </div>
 
                         <flux:card.actions>
-                            @unless ($disabled)
+                            @unless ($locked)
                                 @if ($task->status->isNotStarted())
                                     <flux:button size="sm" variant="subtle" icon="play" wire:click="startTask({{ $task->id }})">{{ __('Start task') }}</flux:button>
                                 @endif
@@ -87,7 +88,8 @@
                             <flux:table bleed>
                                 <flux:table.rows>
                                     @foreach ($task->subTasks as $subTask)
-                                        @php($subDisabled = $disabled || $subTask->status->isCanceled())
+                                        @php($subDisabled = $disabled || $subTask->status->isCanceled() || $task->status->isFinished())
+                                        @php($subLocked = $subDisabled || $subTask->status->isCompleted())
 
                                         <flux:table.row>
                                             <flux:table.cell class="w-1/12">
@@ -110,7 +112,7 @@
                                             </flux:table.cell>
 
                                             <flux:table.cell class="w-1/12">
-                                                @unless ($subDisabled)
+                                                @unless ($subLocked)
                                                     <flux:dropdown align="end">
                                                         <flux:button size="xs" icon="ellipsis-horizontal" square :aria-label="__('Sub-task actions')" />
                                                         <flux:menu>
@@ -131,9 +133,29 @@
                         </flux:card.body>
                     @endif
 
-                    @unless ($disabled)
-                        <flux:card.footer>
-                            <div class="flex flex-wrap items-center gap-4">
+                    <flux:card.footer>
+                        <div class="flex flex-wrap items-center gap-4">
+                            @if ($locked)
+                                <span class="flex items-center gap-2 text-sm">
+                                    <flux:avatar
+                                        size="xs"
+                                        :src="$task->contact?->logo_url"
+                                        :name="$task->contact?->name"
+                                        :initials="$task->contact?->initials()"
+                                    />
+                                    {{ $task->contact?->name ?? __('No contact') }}
+                                </span>
+
+                                <span class="flex items-center gap-2 text-sm">
+                                    <flux:avatar
+                                        size="xs"
+                                        :src="$task->assignee?->photo_url"
+                                        :name="$task->assignee?->name"
+                                        :initials="$task->assignee?->initials()"
+                                    />
+                                    {{ $task->assignee?->name ?? __('Unassigned') }}
+                                </span>
+                            @else
                                 <flux:button size="sm" variant="subtle" wire:click="$dispatch('assign-contact', { taskId: {{ $task->id }} })">
                                     <span class="flex items-center gap-2">
                                         <flux:avatar
@@ -157,13 +179,13 @@
                                         {{ $task->assignee?->name ?? __('Assign member') }}
                                     </span>
                                 </flux:button>
+                            @endif
 
-                                <flux:text class="ms-auto text-xs">
-                                    {{ $task->attachments_count }} {{ $task->attachments_count === 1 ? __('attachment') : __('attachments') }}
-                                </flux:text>
-                            </div>
-                        </flux:card.footer>
-                    @endunless
+                            <flux:text class="ms-auto text-xs">
+                                {{ $task->attachments_count }} {{ $task->attachments_count === 1 ? __('attachment') : __('attachments') }}
+                            </flux:text>
+                        </div>
+                    </flux:card.footer>
                 </flux:card>
             @endforeach
         </div>
@@ -229,14 +251,14 @@
                     <flux:heading size="sm">{{ __('Project histories') }}</flux:heading>
                 </flux:card.header>
 
-                <flux:card.body>
+                <flux:card.body class="max-h-96 overflow-y-auto">
                     @if ($timeline->isEmpty())
                         <flux:text class="text-sm">{{ __('No histories yet.') }}</flux:text>
                     @else
                         <x-ui.timeline>
                             @foreach ($timeline as $log)
                                 <x-ui.timeline.item :status="$loop->first ? 'current' : 'complete'">
-                                    <flux:heading size="sm">{{ $log->event->label() }}</flux:heading>
+                                    <flux:heading size="sm">{{ $log->summary() }}</flux:heading>
                                     <flux:text class="text-xs">
                                         {{ $log->actor?->name }} &middot; {{ $log->created_at->diffForHumans() }}
                                     </flux:text>
@@ -249,81 +271,83 @@
         </aside>
     </div>
 
-    <x-modal wire:model.self="showEdit" :title="__('Edit project')">
-        <div class="flex flex-col gap-4">
-            <flux:input wire:model="title" :label="__('Title')" />
-            <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" />
-            <flux:textarea wire:model="remark" :label="__('Remark')" rows="2" />
-            <x-ui.date-picker wire:model="mandatedDate" :label="__('Mandated date')" clearable with-today />
+    <div>
+        <x-modal wire:model.self="showEdit" :title="__('Edit project')">
+            <div class="flex flex-col gap-4">
+                <flux:input wire:model="title" :label="__('Title')" />
+                <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" />
+                <flux:textarea wire:model="remark" :label="__('Remark')" rows="2" />
+                <x-ui.date-picker wire:model="mandatedDate" :label="__('Mandated date')" clearable with-today />
 
-            <x-ui.select wire:model="assigneeId" :label="__('Assignee')" :placeholder="__('Unassigned')" :empty="__('No members found')" clearable>
-                @foreach ($members as $member)
-                    <x-ui.select.option value="{{ $member->id }}" icon="user">{{ $member->name }}</x-ui.select.option>
-                @endforeach
-            </x-ui.select>
+                <x-ui.select wire:model="assigneeId" :label="__('Assignee')" :placeholder="__('Unassigned')" :empty="__('No members found')" clearable>
+                    @foreach ($members as $member)
+                        <x-ui.select.option value="{{ $member->id }}" icon="user">{{ $member->name }}</x-ui.select.option>
+                    @endforeach
+                </x-ui.select>
 
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="primary" wire:click="saveProject">{{ __('Save') }}</flux:button>
+                </div>
+            </div>
+        </x-modal>
+
+        <x-modal wire:model.self="showTaskInfo" :title="__('Update information')">
+            <div class="flex flex-col gap-4">
+                <flux:input wire:model="taskTitle" :label="__('Title')" />
+                <flux:textarea wire:model="taskSummary" :label="__('Summary')" rows="3" />
+
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="primary" wire:click="saveTaskInfo">{{ __('Save') }}</flux:button>
+                </div>
+            </div>
+        </x-modal>
+
+        <x-modal wire:model.self="showCancel" :title="__('Cancel task')">
+            <div class="flex flex-col gap-4">
+                <flux:textarea wire:model="cancelReason" :label="__('Reason')" rows="3" required />
+                <flux:error name="reason" />
+
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="danger" wire:click="cancelTask">{{ __('Cancel task') }}</flux:button>
+                </div>
+            </div>
+        </x-modal>
+
+        <x-modal wire:model.self="showCancelProject" :title="__('Cancel project')">
+            <div class="flex flex-col gap-4">
+                <flux:textarea wire:model="projectCancelReason" :label="__('Reason')" rows="3" required />
+                <flux:error name="reason" />
+
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="danger" wire:click="cancelProject">{{ __('Cancel project') }}</flux:button>
+                </div>
+            </div>
+        </x-modal>
+
+        <x-modal wire:model.self="showArchive" :title="__('Archive project')" :subtitle="__('The project is removed from lists but kept.')">
             <div class="flex items-center justify-between">
                 <flux:modal.close>
                     <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
-                <flux:button variant="primary" wire:click="saveProject">{{ __('Save') }}</flux:button>
+                <flux:button variant="danger" wire:click="archive">{{ __('Archive') }}</flux:button>
             </div>
-        </div>
-    </x-modal>
+        </x-modal>
 
-    <x-modal wire:model.self="showTaskInfo" :title="__('Update information')">
-        <div class="flex flex-col gap-4">
-            <flux:input wire:model="taskTitle" :label="__('Title')" />
-            <flux:textarea wire:model="taskSummary" :label="__('Summary')" rows="3" />
-
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
-                <flux:button variant="primary" wire:click="saveTaskInfo">{{ __('Save') }}</flux:button>
-            </div>
-        </div>
-    </x-modal>
-
-    <x-modal wire:model.self="showCancel" :title="__('Cancel task')">
-        <div class="flex flex-col gap-4">
-            <flux:textarea wire:model="cancelReason" :label="__('Reason')" rows="3" required />
-            <flux:error name="reason" />
-
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
-                <flux:button variant="danger" wire:click="cancelTask">{{ __('Cancel task') }}</flux:button>
-            </div>
-        </div>
-    </x-modal>
-
-    <x-modal wire:model.self="showCancelProject" :title="__('Cancel project')">
-        <div class="flex flex-col gap-4">
-            <flux:textarea wire:model="projectCancelReason" :label="__('Reason')" rows="3" required />
-            <flux:error name="reason" />
-
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
-                <flux:button variant="danger" wire:click="cancelProject">{{ __('Cancel project') }}</flux:button>
-            </div>
-        </div>
-    </x-modal>
-
-    <x-modal wire:model.self="showArchive" :title="__('Archive project')" :subtitle="__('The project is removed from lists but kept.')">
-        <div class="flex items-center justify-between">
-            <flux:modal.close>
-                <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-            </flux:modal.close>
-            <flux:button variant="danger" wire:click="archive">{{ __('Archive') }}</flux:button>
-        </div>
-    </x-modal>
-
-    <livewire:projects.partials.assign-member />
-    <livewire:attachments.partials.upload />
-    <livewire:attachments.partials.edit />
-    <livewire:projects.partials.assign-contact />
+        <livewire:projects.partials.assign-member />
+        <livewire:attachments.partials.upload />
+        <livewire:attachments.partials.edit />
+        <livewire:projects.partials.assign-contact />
+    </div>
 </x-page>

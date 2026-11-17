@@ -254,41 +254,43 @@
         </flux:checkbox.group>
     @endif
 
-    <x-modal
-        wire:model.self="showDeleteModal"
-        :title="__('Delete contact')"
-        :subtitle="__('Delete :name from your contacts?', ['name' => $deletingContactName ?? __('this contact')])"
-    >
-        <div class="space-y-6">
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
+    <div>
+        <x-modal
+            wire:model.self="showDeleteModal"
+            :title="__('Delete contact')"
+            :subtitle="__('Delete :name from your contacts?', ['name' => $deletingContactName ?? __('this contact')])"
+        >
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
 
-                <flux:button variant="danger" wire:click="deleteConfirmed">
-                    {{ __('Delete contact') }}
-                </flux:button>
+                    <flux:button variant="danger" wire:click="deleteConfirmed">
+                        {{ __('Delete contact') }}
+                    </flux:button>
+                </div>
             </div>
-        </div>
-    </x-modal>
+        </x-modal>
 
-    <x-modal
-        wire:model.self="showBatchDeleteModal"
-        :title="__('Delete contacts')"
-        :subtitle="__('Delete :count selected contacts?', ['count' => count($selected)])"
-    >
-        <div class="space-y-6">
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
+        <x-modal
+            wire:model.self="showBatchDeleteModal"
+            :title="__('Delete contacts')"
+            :subtitle="__('Delete :count selected contacts?', ['count' => count($selected)])"
+        >
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
 
-                <flux:button variant="danger" wire:click="deleteSelectedConfirmed">
-                    {{ __('Delete contacts') }}
-                </flux:button>
+                    <flux:button variant="danger" wire:click="deleteSelectedConfirmed">
+                        {{ __('Delete contacts') }}
+                    </flux:button>
+                </div>
             </div>
-        </div>
-    </x-modal>
+        </x-modal>
 
-    <livewire:contacts.edit />
+        <livewire:contacts.edit />
+    </div>
 </x-page>

@@ -170,7 +170,7 @@ class View extends Component
                         ->whereIn('subject_id', $taskIds);
                 });
             })
-            ->with('actor')
+            ->with(['actor', 'subject'])
             ->latest('created_at')
             ->latest('id')
             ->limit(50)
@@ -251,7 +251,12 @@ class View extends Component
 
         $task->update(['started_at' => now()]);
 
-        unset($this->tasks);
+        if ($task->project->status->isNotStarted() || $task->project->status->isScheduled()) {
+            $task->project->update(['started_date' => today()]);
+            $this->project->refresh();
+        }
+
+        unset($this->tasks, $this->canFinish);
 
         event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, ['action' => 'started']));
     }
@@ -279,12 +284,19 @@ class View extends Component
 
         abort_unless($task->isSubTask(), 404);
         abort_if($task->isDisabled() || $task->isCanceled(), 403);
+        abort_if($task->parent?->status->isFinished() === true, 403);
 
         $finished = $task->finished_at === null;
 
         $task->update([
             'finished_at' => $finished ? now() : null,
         ]);
+
+        $parent = $task->parent;
+
+        if ($finished && $parent !== null && $parent->started_at === null) {
+            $parent->update(['started_at' => now()]);
+        }
 
         unset($this->tasks);
 

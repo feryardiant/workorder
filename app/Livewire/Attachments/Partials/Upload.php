@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Livewire\Attachments\Partials;
 
 use App\Actions\FileStorage;
+use App\Events\Projects\AttachmentChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Attachment;
+use App\Models\Organization;
 use App\Models\Project;
 use App\Models\Task;
 use Flux\Flux;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -104,6 +107,8 @@ class Upload extends Component
 
         abort_if($attachable === null, 422);
 
+        $count = 0;
+
         foreach ($this->uploads as $upload) {
             $path = $fileStorage->handle($upload, 'attachments');
 
@@ -114,6 +119,15 @@ class Upload extends Component
                 'mime' => $upload->getMimeType() ?: 'application/octet-stream',
                 'size' => (int) $upload->getSize(),
             ]);
+
+            $count++;
+        }
+
+        if ($count > 0) {
+            event(new AttachmentChanged($this->organizationFor($attachable), Auth::user(), $attachable, [
+                'action' => 'added',
+                'count' => $count,
+            ]));
         }
 
         $this->reset('uploads', 'showModal', 'attachableType', 'attachableId');
@@ -133,6 +147,16 @@ class Upload extends Component
 
         $attachment->delete();
 
+        $attachable = $this->attachable;
+
+        if ($attachable !== null) {
+            event(new AttachmentChanged($this->organizationFor($attachable), Auth::user(), $attachable, [
+                'action' => 'removed',
+                'count' => 1,
+                'name' => $attachment->name,
+            ]));
+        }
+
         unset($this->attachments);
 
         $this->dispatch('attachments-updated');
@@ -142,6 +166,13 @@ class Upload extends Component
     {
         /** @disregard P1013 */
         return view('livewire.attachments.partials.upload');
+    }
+
+    private function organizationFor(Project|Task $attachable): Organization
+    {
+        return $attachable instanceof Project
+            ? $attachable->ownerOrganization
+            : $attachable->project->ownerOrganization;
     }
 
     private function resolveAttachable(string $type, int $id): Project|Task

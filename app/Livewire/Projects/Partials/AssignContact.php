@@ -66,11 +66,14 @@ class AssignContact extends Component
 
         abort_if($contact === null, 422);
 
+        $previous = $task->contact?->name;
+
         $task->update(['contact_id' => $contact->getKey()]);
 
         event(new TaskChanged($task->project->ownerOrganization, Auth::user(), $task, [
             'action' => 'assigned_contact',
-            'contact' => $contact->name,
+            'from' => $previous,
+            'to' => $contact->name,
         ]));
 
         $this->reset('showModal', 'taskId', 'contactId');

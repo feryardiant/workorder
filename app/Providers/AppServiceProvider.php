@@ -19,6 +19,12 @@ use App\Events\Memberships\MemberRemoved;
 use App\Events\Memberships\MemberRoleChanged;
 use App\Events\Organizations\OrganizationCreated;
 use App\Events\Organizations\OrganizationUpdated;
+use App\Events\Projects\AttachmentChanged;
+use App\Events\Projects\ProjectCanceled;
+use App\Events\Projects\ProjectChanged;
+use App\Events\Projects\ProjectKindChanged;
+use App\Events\Projects\TaskCanceled;
+use App\Events\Projects\TaskChanged;
 use App\Listeners\RecordAuditLog;
 use App\Support\Feature\ContactDeletion;
 use App\Support\Feature\MemberDeletion;
@@ -57,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen([
             ApprovalAccepted::class,
+            AttachmentChanged::class,
             ApprovalCanceled::class,
             ApprovalDeclined::class,
             ApprovalRequested::class,
@@ -71,6 +78,11 @@ class AppServiceProvider extends ServiceProvider
             MemberRoleChanged::class,
             OrganizationCreated::class,
             OrganizationUpdated::class,
+            ProjectCanceled::class,
+            ProjectChanged::class,
+            ProjectKindChanged::class,
+            TaskCanceled::class,
+            TaskChanged::class,
         ], RecordAuditLog::class);
 
         $this->configureDefaults();

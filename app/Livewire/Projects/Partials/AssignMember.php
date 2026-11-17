@@ -67,11 +67,14 @@ class AssignMember extends Component
 
         abort_if($member === null, 422);
 
+        $previous = $task->assignee?->name;
+
         $task->update(['assignee_id' => $member->getKey()]);
 
         event(new TaskChanged($task->project->ownerOrganization, Auth::user(), $task, [
             'action' => 'assigned_member',
-            'assignee' => $member->name,
+            'from' => $previous,
+            'to' => $member->name,
         ]));
 
         $this->reset('showModal', 'taskId', 'memberId');

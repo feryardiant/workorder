@@ -78,7 +78,9 @@
         @endif
     </x-org-settings.layout>
 
+        <div>
     <livewire:settings.organizations.create :internal="true" />
 
-    <livewire:org-settings.subsidiaries.remove-subsidiary />
+        <livewire:org-settings.subsidiaries.remove-subsidiary />
+    </div>
 </x-page>
