@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 use App\Actions\Projects\CancelTask;
 use App\Actions\Projects\CreateProject;
+use App\Enums\OrganizationRelationshipType;
 use App\Enums\Role;
 use App\Livewire\Attachments\Index as AttachmentIndex;
+use App\Livewire\Attachments\Partials\Edit as AttachmentEdit;
+use App\Livewire\Attachments\Partials\Upload;
 use App\Livewire\ProjectKinds\Form;
 use App\Livewire\ProjectKinds\Form as ProjectKindForm;
+use App\Livewire\ProjectKinds\Partials\SubtaskForm;
+use App\Livewire\ProjectKinds\Partials\TaskForm;
 use App\Livewire\Projects\Index;
+use App\Livewire\Projects\Partials\AssignContact;
+use App\Livewire\Projects\Partials\AssignMember;
 use App\Livewire\Projects\View;
 use App\Models\Attachment;
 use App\Models\Organization;
@@ -20,6 +27,8 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
@@ -120,10 +129,12 @@ it('lists only tenant attachments and updates their title', function (): void {
         ->set('type', 'image')
         ->assertDontSee('report.pdf')
         ->set('type', 'pdf')
-        ->assertSee('report.pdf')
-        ->call('openEdit', $attachment->getKey())
-        ->set('editTitle', 'Quarterly report')
-        ->call('saveEdit')
+        ->assertSee('report.pdf');
+
+    Livewire::test(AttachmentEdit::class)
+        ->call('open', $attachment->getKey())
+        ->set('title', 'Quarterly report')
+        ->call('save')
         ->assertHasNoErrors();
 
     expect($attachment->refresh()->title)->toBe('Quarterly report');
@@ -278,13 +289,22 @@ it('opens member and contact assignment for the owner', function (): void {
     $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
     $task = $project->tasks->first();
 
-    Livewire::test(View::class, ['project' => $project])
-        ->call('openMember', $task->getKey())
-        ->assertSet('showMember', true)
-        ->call('openContact', $task->getKey())
-        ->assertSet('showContact', true);
+    $contact = contactOrganization($this->tenant, type: OrganizationRelationshipType::Vendor);
 
-    expect($member)->not->toBeNull();
+    Livewire::test(AssignMember::class)
+        ->call('open', $task->getKey())
+        ->assertSet('showModal', true)
+        ->set('memberId', $member?->getKey())
+        ->call('assign');
+
+    Livewire::test(AssignContact::class)
+        ->call('open', $task->getKey())
+        ->assertSet('showModal', true)
+        ->set('contactId', $contact->getKey())
+        ->call('assign');
+
+    expect($task->refresh()->assignee_id)->toBe($member?->getKey())
+        ->and($task->contact_id)->toBe($contact->getKey());
 });
 
 it('hides task actions on a canceled card', function (): void {
@@ -293,14 +313,14 @@ it('hides task actions on a canceled card', function (): void {
     $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
 
     Livewire::test(View::class, ['project' => $project])
-        ->assertSee('openMember(', false);
+        ->assertSee("dispatch('assign-member'", false);
 
     $project->update(['canceled_date' => today(), 'remark' => 'Called off']);
 
     Livewire::test(View::class, ['project' => $project->fresh()])
         ->assertSee(__('Disabled'))
-        ->assertDontSee('openMember(', false)
-        ->assertDontSee('openContact(', false);
+        ->assertDontSee("dispatch('assign-member'", false)
+        ->assertDontSee("dispatch('assign-contact'", false);
 });
 
 it('excludes the current assignee from the member modal', function (): void {
@@ -313,13 +333,11 @@ it('excludes the current assignee from the member modal', function (): void {
     $task = $project->tasks->first();
     $task->update(['assignee_id' => $me?->person?->getKey()]);
 
-    $component = Livewire::test(View::class, ['project' => $project->fresh()])
-        ->call('openMember', $task->getKey());
+    Livewire::test(AssignMember::class)
+        ->call('open', $task->getKey())
+        ->assertSee($teammate->name)
+        ->assertDontSee($me?->name);
 
-    $ids = $component->viewData('assignableMembers')->pluck('id')->all();
-
-    expect($ids)->not->toContain($me?->person?->getKey())
-        ->and($ids)->toContain($teammate->person?->getKey());
 });
 
 it('seeds every copied task with the project assignee', function (): void {
@@ -355,4 +373,108 @@ it('finishes a started task', function (): void {
         ->assertHasNoErrors();
 
     expect($task->refresh()->finished_at)->not->toBeNull();
+});
+
+it('stores contacts on kind tasks and copies them to project tasks', function (): void {
+    $contact = contactOrganization($this->tenant, type: OrganizationRelationshipType::Vendor);
+
+    Livewire::test(ProjectKindForm::class)
+        ->set('title', 'Contacted')
+        ->set('tasks', [[
+            'title' => 'With contact',
+            'summary' => '',
+            'contact_id' => $contact->getKey(),
+            'subtasks' => [[
+                'title' => 'Sub with contact',
+                'summary' => '',
+                'contact_id' => $contact->getKey(),
+            ]],
+        ]])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $kind = ProjectKind::query()->where('title', 'Contacted')->sole();
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+
+    expect($kind->tasks->first()->contact_id)->toBe($contact->getKey())
+        ->and($kind->tasks->first()->children->first()->contact_id)->toBe($contact->getKey())
+        ->and($project->tasks->first()->contact_id)->toBe($contact->getKey())
+        ->and($project->tasks->first()->subTasks->first()->contact_id)->toBe($contact->getKey());
+});
+
+it('edits kind task drafts through the partial components', function (): void {
+    Livewire::test(TaskForm::class)
+        ->call('open', null, [])
+        ->set('title', 'Draft task')
+        ->set('contactId', null)
+        ->call('save')
+        ->assertDispatched('kind-task-saved');
+
+    Livewire::test(SubtaskForm::class)
+        ->call('open', null, [])
+        ->set('title', 'Draft sub-task')
+        ->call('save')
+        ->assertDispatched('kind-subtask-saved');
+});
+
+it('shows contacts on the project kind task table', function (): void {
+    $contact = contactOrganization($this->tenant, type: OrganizationRelationshipType::Vendor);
+
+    $kind = ProjectKind::factory()->create([
+        'owner_organization_id' => $this->tenant->getKey(),
+        'title' => 'Contact column',
+    ]);
+
+    ProjectKindTask::factory()->for($kind, 'kind')->create([
+        'position' => 1,
+        'title' => 'Contacted',
+        'contact_id' => $contact->getKey(),
+    ]);
+
+    Livewire::test(ProjectKindForm::class, ['kind' => $kind->getKey()])
+        ->assertSee($contact->name);
+});
+
+it('uploads attachments for projects and tasks but not sub-tasks', function (): void {
+    Storage::fake();
+
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Uploads']);
+    $first = ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    ProjectKindTask::factory()->subTaskOf($first)->create(['position' => 1]);
+
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $task = $project->tasks->first();
+    $subTask = $task->subTasks->first();
+
+    Livewire::test(Upload::class)
+        ->call('open', 'project', $project->getKey())
+        ->set('uploads', [UploadedFile::fake()->create('brief.pdf', 100, 'application/pdf')])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    Livewire::test(Upload::class)
+        ->call('open', 'task', $task->getKey())
+        ->set('uploads', [UploadedFile::fake()->image('photo.jpg')])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($project->attachments()->count())->toBe(1)
+        ->and($task->attachments()->count())->toBe(1);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->assertSee('1 '.__('attachment'))
+        ->assertSee('brief.pdf')
+        ->assertSee('photo.jpg');
+
+    $attachment = $task->attachments()->sole();
+
+    Livewire::test(Upload::class)
+        ->call('open', 'task', $task->getKey())
+        ->call('remove', $attachment->getKey());
+
+    expect($task->attachments()->count())->toBe(0);
+
+    Livewire::test(Upload::class)
+        ->call('open', 'task', $subTask->getKey())
+        ->assertForbidden();
 });

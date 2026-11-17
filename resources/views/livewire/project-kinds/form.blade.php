@@ -27,8 +27,9 @@
                     <flux:table bleed>
                         <flux:table.columns>
                             <flux:table.column class="w-1/12">{{ __('Order') }}</flux:table.column>
-                            <flux:table.column class="w-8/12">{{ __('Title') }}</flux:table.column>
-                            <flux:table.column class="w-2/12">{{ __('No. of sub-tasks') }}</flux:table.column>
+                            <flux:table.column class="w-6/12">{{ __('Title') }}</flux:table.column>
+                            <flux:table.column class="w-2/12">{{ __('Contacts') }}</flux:table.column>
+                            <flux:table.column class="w-2/12 text-wrap">{{ __('No. of sub-tasks') }}</flux:table.column>
                             <flux:table.column class="w-1/12" align="center">{{ __('Actions') }}</flux:table.column>
                         </flux:table.columns>
 
@@ -36,11 +37,21 @@
                             @forelse ($tasks as $index => $task)
                                 <flux:table.row :key="'task-'.$index">
                                     <flux:table.cell class="w-1/12" align="center">{{ $index + 1 }}</flux:table.cell>
-                                    <flux:table.cell class="w-8/12">
+                                    <flux:table.cell class="w-6/12" wire:click="editTask({{ $index }})">
                                         <flux:heading>{{ $task['title'] }}</flux:heading>
                                         @if (filled($task['summary']))
                                             <flux:text size="sm">{{ $task['summary'] }}</flux:text>
                                         @endif
+                                    </flux:table.cell>
+                                    <flux:table.cell class="w-2/12" wire:click="editTask({{ $index }})">
+                                        @php($contact = $task['contact'] ?? null)
+
+                                        <div class="flex items-center gap-2">
+                                            @if ($contact !== null)
+                                                <flux:avatar size="xs" :src="$contact->photo_url" :name="$contact->name" />
+                                                <span class="truncate">{{ $contact->name }}</span>
+                                            @endif
+                                        </div>
                                     </flux:table.cell>
                                     <flux:table.cell class="w-2/12" align="center">{{ count($task['subtasks']) }}</flux:table.cell>
                                     <flux:table.cell class="w-1/12" align="center">
@@ -98,69 +109,5 @@
         </div>
     </div>
 
-    <x-modal wire:model.self="showTaskForm" flyout position="right" variant="floating" :title="$editingTask === null ? __('Add task') : __('Edit task')">
-        <div class="flex flex-col gap-4">
-            <flux:input wire:model="taskTitle" :label="__('Title')" />
-            <flux:textarea wire:model="taskSummary" :label="__('Summary')" rows="3" />
-
-            @if ($editingTask !== null)
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <flux:heading size="sm">{{ __('Sub-tasks') }}</flux:heading>
-                        <flux:button size="sm" icon="plus" variant="subtle" wire:click="addSubtask({{ $editingTask }})">
-                            {{ __('Add sub-task') }}
-                        </flux:button>
-                    </div>
-
-                    <div class="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-white/10 dark:border-white/10">
-                        @forelse ($tasks[$editingTask]['subtasks'] as $subIndex => $subtask)
-                            <div class="flex items-center justify-between gap-2 p-2" wire:key="sub-{{ $subIndex }}">
-                                <div class="min-w-0">
-                                    <flux:heading size="sm">{{ $subtask['title'] }}</flux:heading>
-                                    @if (filled($subtask['summary']))
-                                        <flux:text class="text-xs">{{ $subtask['summary'] }}</flux:text>
-                                    @endif
-                                </div>
-
-                                <flux:dropdown align="end">
-                                    <flux:button size="xs" icon="ellipsis-horizontal" square :aria-label="__('Actions')" />
-                                    <flux:menu>
-                                        <flux:menu.item icon="arrow-up" wire:click="moveSubtask({{ $editingTask }}, {{ $subIndex }}, -1)">{{ __('Move up') }}</flux:menu.item>
-                                        <flux:menu.item icon="arrow-down" wire:click="moveSubtask({{ $editingTask }}, {{ $subIndex }}, 1)">{{ __('Move down') }}</flux:menu.item>
-                                        <flux:menu.item icon="pencil-square" wire:click="editSubtask({{ $editingTask }}, {{ $subIndex }})">{{ __('Edit') }}</flux:menu.item>
-                                        <flux:menu.item variant="danger" icon="trash" wire:click="deleteSubtask({{ $editingTask }}, {{ $subIndex }})">{{ __('Delete') }}</flux:menu.item>
-                                    </flux:menu>
-                                </flux:dropdown>
-                            </div>
-                        @empty
-                            <flux:text class="p-3 text-sm">{{ __('No sub-tasks yet.') }}</flux:text>
-                        @endforelse
-                    </div>
-                </div>
-            @else
-                <flux:text class="text-sm">{{ __('Save the task first to add sub-tasks.') }}</flux:text>
-            @endif
-
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Close') }}</flux:button>
-                </flux:modal.close>
-                <flux:button variant="primary" wire:click="saveTask">{{ __('Apply') }}</flux:button>
-            </div>
-        </div>
-    </x-modal>
-
-    <x-modal wire:model.self="showSubtaskForm" :title="$editingSubtask === null ? __('Add sub-task') : __('Edit sub-task')">
-        <div class="flex flex-col gap-4">
-            <flux:input wire:model="subtaskTitle" :label="__('Title')" />
-            <flux:textarea wire:model="subtaskSummary" :label="__('Summary')" rows="3" />
-
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
-                <flux:button variant="primary" wire:click="saveSubtask">{{ __('Apply') }}</flux:button>
-            </div>
-        </div>
-    </x-modal>
+    <livewire:project-kinds.partials.task-form />
 </x-page>

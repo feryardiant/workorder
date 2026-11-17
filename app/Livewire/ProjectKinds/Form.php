@@ -7,6 +7,7 @@ namespace App\Livewire\ProjectKinds;
 use App\Events\Projects\ProjectKindChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\AuditLog;
+use App\Models\Organization;
 use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
 use Flux\Flux;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
@@ -33,27 +35,9 @@ class Form extends Component
     public string $summary = '';
 
     /**
-     * @var list<array{title: string, summary: string, subtasks: list<array{title: string, summary: string}>}>
+     * @var list<array{title: string, summary: string, contact_id: ?int, contact: ?Organization, subtasks: list<array{title: string, summary: string, contact_id: ?int, contact: ?Organization}>}>
      */
     public array $tasks = [];
-
-    public bool $showTaskForm = false;
-
-    public ?int $editingTask = null;
-
-    public string $taskTitle = '';
-
-    public string $taskSummary = '';
-
-    public bool $showSubtaskForm = false;
-
-    public ?int $subtaskParent = null;
-
-    public ?int $editingSubtask = null;
-
-    public string $subtaskTitle = '';
-
-    public string $subtaskSummary = '';
 
     public function mount(?string $kind = null): void
     {
@@ -63,7 +47,7 @@ class Form extends Component
 
         $model = ProjectKind::query()
             ->where('owner_organization_id', $this->requireOrganization()->getKey())
-            ->with('tasks.children')
+            ->with('tasks.contact', 'tasks.children.contact')
             ->findOrFail((int) $kind);
 
         $this->kindId = $model->getKey();
@@ -74,10 +58,14 @@ class Form extends Component
             ->map(fn (ProjectKindTask $task): array => [
                 'title' => $task->title,
                 'summary' => (string) $task->summary,
+                'contact_id' => $task->contact_id,
+                'contact' => $task->contact,
                 'subtasks' => array_values($task->children
                     ->map(fn (ProjectKindTask $child): array => [
                         'title' => $child->title,
                         'summary' => (string) $child->summary,
+                        'contact_id' => $child->contact_id,
+                        'contact' => $child->contact,
                     ])
                     ->all()),
             ])
@@ -86,10 +74,7 @@ class Form extends Component
 
     public function addTask(): void
     {
-        $this->editingTask = null;
-        $this->taskTitle = '';
-        $this->taskSummary = '';
-        $this->showTaskForm = true;
+        $this->dispatch('open-kind-task', index: null, task: []);
     }
 
     public function editTask(int $index): void
@@ -98,32 +83,42 @@ class Form extends Component
 
         abort_if($task === null, 404);
 
-        $this->editingTask = $index;
-        $this->taskTitle = $task['title'];
-        $this->taskSummary = $task['summary'];
-        $this->showTaskForm = true;
+        $this->dispatch('open-kind-task', index: $index, task: $task);
     }
 
-    public function saveTask(): void
+    /**
+     * @param  array{title: string, summary: string, contact_id: ?int, subtasks: list<array{title: string, summary: string, contact_id: ?int}>}  $task
+     */
+    #[On('kind-task-saved')]
+    public function applyTask(?int $index, array $task): void
     {
-        $this->validate([
-            'taskTitle' => ['required', 'string', 'max:255'],
-            'taskSummary' => ['nullable', 'string', 'max:5000'],
-        ]);
+        $contactId = $task['contact_id'];
+        $subtasks = [];
 
-        $task = [
-            'title' => $this->taskTitle,
-            'summary' => $this->taskSummary,
-            'subtasks' => $this->editingTask === null ? [] : ($this->tasks[$this->editingTask]['subtasks'] ?? []),
-        ];
+        foreach ($task['subtasks'] as $subtask) {
+            $subtaskContactId = $subtask['contact_id'];
 
-        if ($this->editingTask === null) {
-            $this->tasks[] = $task;
-        } else {
-            $this->tasks[$this->editingTask] = $task;
+            $subtasks[] = [
+                'title' => $subtask['title'],
+                'summary' => $subtask['summary'],
+                'contact_id' => $subtaskContactId,
+                'contact' => $subtaskContactId === null ? null : Organization::query()->find($subtaskContactId),
+            ];
         }
 
-        $this->reset('showTaskForm', 'editingTask', 'taskTitle', 'taskSummary');
+        $value = [
+            'title' => $task['title'],
+            'summary' => $task['summary'],
+            'contact_id' => $contactId,
+            'contact' => $contactId === null ? null : Organization::query()->find($contactId),
+            'subtasks' => $subtasks,
+        ];
+
+        if ($index === null) {
+            $this->tasks[] = $value;
+        } else {
+            $this->tasks[$index] = $value;
+        }
     }
 
     public function deleteTask(int $index): void
@@ -140,65 +135,6 @@ class Form extends Component
         }
 
         [$this->tasks[$index], $this->tasks[$target]] = [$this->tasks[$target], $this->tasks[$index]];
-    }
-
-    public function addSubtask(int $parent): void
-    {
-        $this->subtaskParent = $parent;
-        $this->editingSubtask = null;
-        $this->subtaskTitle = '';
-        $this->subtaskSummary = '';
-        $this->showSubtaskForm = true;
-    }
-
-    public function editSubtask(int $parent, int $index): void
-    {
-        $subtask = $this->tasks[$parent]['subtasks'][$index] ?? null;
-
-        abort_if($subtask === null, 404);
-
-        $this->subtaskParent = $parent;
-        $this->editingSubtask = $index;
-        $this->subtaskTitle = $subtask['title'];
-        $this->subtaskSummary = $subtask['summary'];
-        $this->showSubtaskForm = true;
-    }
-
-    public function saveSubtask(): void
-    {
-        $this->validate([
-            'subtaskTitle' => ['required', 'string', 'max:255'],
-            'subtaskSummary' => ['nullable', 'string', 'max:5000'],
-        ]);
-
-        $parent = (int) $this->subtaskParent;
-        $subtask = ['title' => $this->subtaskTitle, 'summary' => $this->subtaskSummary];
-
-        if ($this->editingSubtask === null) {
-            $this->tasks[$parent]['subtasks'][] = $subtask;
-        } else {
-            $this->tasks[$parent]['subtasks'][$this->editingSubtask] = $subtask;
-        }
-
-        $this->reset('showSubtaskForm', 'subtaskParent', 'editingSubtask', 'subtaskTitle', 'subtaskSummary');
-    }
-
-    public function deleteSubtask(int $parent, int $index): void
-    {
-        array_splice($this->tasks[$parent]['subtasks'], $index, 1);
-    }
-
-    public function moveSubtask(int $parent, int $index, int $direction): void
-    {
-        $target = $index + $direction;
-        $subtasks = $this->tasks[$parent]['subtasks'];
-
-        if (! isset($subtasks[$target])) {
-            return;
-        }
-
-        [$subtasks[$index], $subtasks[$target]] = [$subtasks[$target], $subtasks[$index]];
-        $this->tasks[$parent]['subtasks'] = $subtasks;
     }
 
     public function save(): void
@@ -236,6 +172,7 @@ class Form extends Component
                     'position' => $index + 1,
                     'title' => $task['title'],
                     'summary' => $task['summary'] === '' ? null : $task['summary'],
+                    'contact_id' => $task['contact_id'] ?? null,
                 ]);
 
                 foreach ($task['subtasks'] as $childIndex => $subtask) {
@@ -244,6 +181,7 @@ class Form extends Component
                         'position' => $childIndex + 1,
                         'title' => $subtask['title'],
                         'summary' => $subtask['summary'] === '' ? null : $subtask['summary'],
+                        'contact_id' => $subtask['contact_id'] ?? null,
                     ]);
                 }
             }

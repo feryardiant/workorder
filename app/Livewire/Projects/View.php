@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace App\Livewire\Projects;
 
-use App\Actions\FileStorage;
 use App\Actions\Projects\CancelProject;
 use App\Actions\Projects\CancelTask;
-use App\Enums\OrganizationRelationshipType;
 use App\Enums\ProjectStatus;
 use App\Events\Projects\ProjectChanged;
 use App\Events\Projects\TaskChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
+use App\Models\Attachment;
 use App\Models\AuditLog;
-use App\Models\Organization;
 use App\Models\Person;
 use App\Models\Project;
 use App\Models\Task;
@@ -25,21 +23,18 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
-use Livewire\WithFileUploads;
 
 /**
  * @property-read Collection<int, Task> $tasks
  * @property-read Collection<int, Person> $assignees
- * @property-read Collection<int, Person> $assignableMembers
  * @property-read Collection<int, Person> $members
- * @property-read Collection<int, Organization> $contacts
  * @property-read Collection<int, AuditLog> $timeline
+ * @property-read Collection<int, Attachment> $projectAttachments
  * @property-read bool $canFinish
  */
 class View extends Component
 {
-    use HasCurrentOrganization, WithFileUploads;
+    use HasCurrentOrganization;
 
     #[Locked]
     public Project $project;
@@ -56,11 +51,6 @@ class View extends Component
 
     public ?int $assigneeId = null;
 
-    /**
-     * @var array<int, TemporaryUploadedFile>
-     */
-    public array $uploads = [];
-
     public bool $showTaskInfo = false;
 
     public ?int $taskInfoId = null;
@@ -68,18 +58,6 @@ class View extends Component
     public string $taskTitle = '';
 
     public string $taskSummary = '';
-
-    public bool $showMember = false;
-
-    public ?int $memberTaskId = null;
-
-    public ?int $memberId = null;
-
-    public bool $showContact = false;
-
-    public ?int $contactTaskId = null;
-
-    public ?int $contactId = null;
 
     public bool $showCancel = false;
 
@@ -99,7 +77,7 @@ class View extends Component
 
         abort_unless($project->owner_organization_id === $organization->getKey(), 404);
 
-        $this->project = $project->load(['kind', 'customer', 'assignee', 'attachments']);
+        $this->project = $project->load(['kind', 'customer', 'assignee']);
 
         $this->fillEditForm();
     }
@@ -112,6 +90,7 @@ class View extends Component
     {
         return $this->project->tasks()
             ->with(['subTasks.assignee', 'assignee', 'contact'])
+            ->withCount('attachments')
             ->get();
     }
 
@@ -143,31 +122,33 @@ class View extends Component
     }
 
     /**
-     * Members other than the current assignee of the task being assigned.
+     * Every attachment of the project and its top-level tasks.
      *
-     * @return Collection<int, Person>
+     * @return Collection<int, Attachment>
      */
     #[Computed]
-    public function assignableMembers(): Collection
+    public function projectAttachments(): Collection
     {
-        if ($this->memberTaskId === null) {
-            return $this->members;
-        }
+        $projectAttachments = $this->project->attachments()->get();
 
-        $assigneeId = $this->project->allTasks()->whereKey($this->memberTaskId)->value('assignee_id');
+        $taskAttachments = Attachment::query()
+            ->where('attachable_type', (new Task)->getMorphClass())
+            ->whereIn('attachable_id', $this->project->allTasks()->pluck('id'))
+            ->get();
 
-        return $this->members
-            ->reject(fn (Person $person): bool => $person->getKey() === $assigneeId)
-            ->values();
+        return new Collection(
+            $projectAttachments
+                ->concat($taskAttachments)
+                ->sortByDesc(fn (Attachment $attachment): int => $attachment->created_at?->getTimestamp() ?? 0)
+                ->values()
+                ->all(),
+        );
     }
 
-    /**
-     * @return Collection<int, Organization>
-     */
-    #[Computed]
-    public function contacts(): Collection
+    #[On('attachments-updated')]
+    public function refreshAttachments(): void
     {
-        return $this->requireOrganization()->organizationCounterparties(OrganizationRelationshipType::Vendor)->get();
+        unset($this->tasks, $this->projectAttachments);
     }
 
     /**
@@ -202,7 +183,7 @@ class View extends Component
         $this->showEdit = true;
     }
 
-    public function saveProject(FileStorage $fileStorage): void
+    public function saveProject(): void
     {
         $this->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -210,7 +191,6 @@ class View extends Component
             'remark' => ['nullable', 'string', 'max:5000'],
             'mandatedDate' => ['nullable', 'date'],
             'assigneeId' => ['nullable', 'integer'],
-            'uploads.*' => ['file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,jpg,jpeg,png,webp'],
         ]);
 
         $assignee = $this->assigneeId === null ? null : $this->members->firstWhere('id', $this->assigneeId);
@@ -223,42 +203,12 @@ class View extends Component
             'assignee_id' => $assignee?->getKey(),
         ]);
 
-        foreach ($this->uploads as $upload) {
-            $path = $fileStorage->handle($upload, 'attachments');
-
-            $this->project->attachments()->create([
-                'title' => $upload->getClientOriginalName(),
-                'name' => $upload->getClientOriginalName(),
-                'path' => $path,
-                'mime' => $upload->getMimeType() ?: 'application/octet-stream',
-                'size' => (int) $upload->getSize(),
-            ]);
-        }
-
-        $this->reset('uploads', 'showEdit');
+        $this->reset('showEdit');
         unset($this->assignees);
 
         event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ['action' => 'updated']));
 
         Flux::toast(variant: 'success', text: __('Project updated.'));
-    }
-
-    public function removeAttachment(int $attachmentId, FileStorage $fileStorage): void
-    {
-        $attachment = $this->project->attachments()->findOrFail($attachmentId);
-
-        $fileStorage->delete($attachment->path);
-
-        $attachment->delete();
-    }
-
-    public function removeUpload(int $index): void
-    {
-        if (! isset($this->uploads[$index])) {
-            return;
-        }
-
-        array_splice($this->uploads, $index, 1);
     }
 
     public function openTaskInfo(int $taskId): void
@@ -343,66 +293,6 @@ class View extends Component
         ]));
     }
 
-    public function openMember(int $taskId): void
-    {
-        $task = $this->findTask($taskId);
-
-        abort_if($task->isDisabled() || $task->isCanceled(), 403);
-
-        $this->memberTaskId = $task->getKey();
-        $this->memberId = $task->assignee_id;
-        $this->showMember = true;
-    }
-
-    public function assignMember(): void
-    {
-        $task = $this->findTask((int) $this->memberTaskId);
-
-        $member = $this->members->firstWhere('id', $this->memberId);
-
-        abort_if($member === null, 422);
-
-        $task->update(['assignee_id' => $member->getKey()]);
-
-        $this->reset('showMember', 'memberTaskId', 'memberId');
-        unset($this->tasks, $this->assignees);
-
-        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, [
-            'action' => 'assigned_member',
-            'assignee' => $member->name,
-        ]));
-    }
-
-    public function openContact(int $taskId): void
-    {
-        $task = $this->findTask($taskId);
-
-        abort_if($task->isDisabled() || $task->isCanceled(), 403);
-
-        $this->contactTaskId = $task->getKey();
-        $this->contactId = $task->contact_id;
-        $this->showContact = true;
-    }
-
-    public function assignContact(): void
-    {
-        $task = $this->findTask((int) $this->contactTaskId);
-
-        $contact = $this->contacts->firstWhere('id', $this->contactId);
-
-        abort_if($contact === null, 422);
-
-        $task->update(['contact_id' => $contact->getKey()]);
-
-        $this->reset('showContact', 'contactTaskId', 'contactId');
-        unset($this->tasks);
-
-        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, [
-            'action' => 'assigned_contact',
-            'contact' => $contact->name,
-        ]));
-    }
-
     public function openCancel(int $taskId): void
     {
         abort_if($this->findTask($taskId)->isSubTask(), 403);
@@ -475,16 +365,6 @@ class View extends Component
         $this->showArchive = true;
     }
 
-    #[On('contact-updated')]
-    public function refreshContacts(?int $contactId = null): void
-    {
-        unset($this->contacts);
-
-        if ($contactId !== null) {
-            $this->contactId = $contactId;
-        }
-    }
-
     public function archive(): void
     {
         event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ['action' => 'archived']));
@@ -494,6 +374,12 @@ class View extends Component
         $this->redirectRoute('projects.index', navigate: true);
     }
 
+    #[On('task-updated')]
+    public function refreshTask(): void
+    {
+        unset($this->tasks, $this->assignees, $this->canFinish, $this->timeline);
+    }
+
     public function render(): ViewContract
     {
         /** @disregard P1013 */
@@ -501,9 +387,8 @@ class View extends Component
             'tasks' => $this->tasks,
             'assignees' => $this->assignees,
             'members' => $this->members,
-            'assignableMembers' => $this->assignableMembers,
-            'contacts' => $this->contacts,
             'timeline' => $this->timeline,
+            'projectAttachments' => $this->projectAttachments,
         ])->title($this->project->title);
     }
 

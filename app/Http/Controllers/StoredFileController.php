@@ -16,7 +16,7 @@ class StoredFileController extends Controller
      */
     public function __invoke(string $path, FileStorage $fileStorage): StreamedResponse
     {
-        abort_unless(preg_match('#^(avatars|photos|logos)/[A-Za-z0-9._-]+$#', $path) === 1, 404);
+        abort_unless(preg_match('#^(attachments|avatars|photos|logos)/[A-Za-z0-9._-]+$#', $path) === 1, 404);
 
         // The browser never sees this internal pre-signed URL.
         $presignedUrl = $fileStorage->getTemporaryUrl($path);

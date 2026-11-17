@@ -10,6 +10,7 @@ use Database\Factories\TaskFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\RouteKey;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,6 +39,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property-read ?Task $parent
  * @property-read Organization $contact
  * @property-read ?Person $assignee
+ * @property-read Collection<int, Task> $subTasks
+ * @property-read Collection<int, Attachment> $attachments
  */
 #[Fillable([
     'project_id',

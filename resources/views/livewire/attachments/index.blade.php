@@ -39,7 +39,7 @@
             @forelse ($attachments as $attachment)
                 <flux:table.row :key="$attachment->id">
                     <flux:table.cell>
-                        <button type="button" wire:click="openEdit({{ $attachment->id }})" class="flex items-center gap-2 text-start">
+                        <button type="button" wire:click="$dispatch('edit-attachment', { attachmentId: {{ $attachment->id }} })" class="flex items-center gap-2 text-start">
                             <flux:icon
                                 :icon="$attachment->isImage() ? 'photo' : ($attachment->isPdf() ? 'document-text' : 'document')"
                                 class="size-5 text-zinc-500"
@@ -74,36 +74,5 @@
         </flux:table.rows>
     </flux:table>
 
-    <x-modal wire:model.self="showEdit" :title="$editTitle">
-        @if ($editing !== null)
-            <div class="flex flex-col gap-4">
-                <flux:input wire:model="editTitle" :label="__('Title')" />
-
-                <flux:field>
-                    <flux:label>{{ __('Attached to') }}</flux:label>
-                    <flux:text>{{ $editing->attachable instanceof \App\Models\Project ? $editing->attachable->title : $editing->attachable?->title }}</flux:text>
-                </flux:field>
-
-                <flux:text class="text-sm">{{ $editing->mime }}</flux:text>
-                <flux:text class="text-sm">{{ $editing->typeLabel() }} &middot; {{ $editing->human_size }}</flux:text>
-
-                <div class="max-h-96 overflow-auto rounded-lg border border-zinc-200 dark:border-white/10">
-                    @if ($editing->isImage())
-                        <img src="{{ $editing->url }}" alt="{{ $editing->name }}" class="mx-auto max-h-96" />
-                    @elseif ($editing->isPdf())
-                        <iframe src="{{ $editing->url }}" title="{{ $editing->name }}" class="h-96 w-full"></iframe>
-                    @else
-                        <flux:text class="p-6 text-center">{{ __('No preview available') }}</flux:text>
-                    @endif
-                </div>
-
-                <div class="flex items-center justify-between">
-                    <flux:modal.close>
-                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                    </flux:modal.close>
-                    <flux:button variant="primary" wire:click="saveEdit">{{ __('Save') }}</flux:button>
-                </div>
-            </div>
-        @endif
-    </x-modal>
+    <livewire:attachments.partials.edit />
 </x-page>

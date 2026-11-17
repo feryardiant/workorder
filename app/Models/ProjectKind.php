@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Database\Factories\ProjectKindFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +19,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $owner_organization_id
  * @property string $title
  * @property ?string $summary
+ * @property-read Organization $ownerOrganization
+ * @property-read Collection<int, ProjectKindTask> $tasks
+ * @property-read Collection<int, ProjectKindTask> $allTasks
+ * @property-read int|null $tasks_count
  */
 #[Fillable(['owner_organization_id', 'title', 'summary'])]
 class ProjectKind extends Model

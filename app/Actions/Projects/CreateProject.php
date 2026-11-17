@@ -111,6 +111,7 @@ final class CreateProject
             'project_id' => $project->getKey(),
             'parent_id' => $parent?->getKey(),
             'assignee_id' => $project->assignee_id,
+            'contact_id' => $kindTask->contact_id,
             'slug' => Str::slug(\sprintf(
                 '%s-%s-%d-%d',
                 $project->slug,

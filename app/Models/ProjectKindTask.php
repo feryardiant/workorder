@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Database\Factories\ProjectKindTaskFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,12 +18,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property int $project_kind_id
  * @property ?int $parent_id
+ * @property ?int $contact_id
  * @property int $position
  * @property string $title
  * @property ?string $summary
+ * @property-read ?ProjectKind $kind
  * @property-read ?self $parent
+ * @property-read ?Organization $contact
+ * @property-read Collection<int, self> $children
  */
-#[Fillable(['project_kind_id', 'parent_id', 'position', 'title', 'summary'])]
+#[Fillable(['project_kind_id', 'parent_id', 'contact_id', 'position', 'title', 'summary'])]
 class ProjectKindTask extends Model
 {
     /** @use HasFactory<ProjectKindTaskFactory> */
@@ -50,6 +55,17 @@ class ProjectKindTask extends Model
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /**
+     * @return HasMany<self, $this>
+     */
+    /**
+     * @return BelongsTo<Organization, $this>
+     */
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'contact_id');
     }
 
     /**

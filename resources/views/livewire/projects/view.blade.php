@@ -18,6 +18,8 @@
         <flux:dropdown align="end">
             <flux:button icon="ellipsis-horizontal" square :aria-label="__('More actions')" />
             <flux:menu>
+                <flux:menu.item icon="paper-clip" wire:click="$dispatch('add-attachments', { type: 'project', id: {{ $project->id }} })">{{ __('Add attachments') }}</flux:menu.item>
+
                 @if (! $project->status->isCanceled())
                     <flux:menu.item icon="no-symbol" wire:click="confirmCancelProject">{{ __('Cancel project') }}</flux:menu.item>
                 @endif
@@ -67,8 +69,9 @@
 
                                     <flux:menu>
                                         <flux:menu.item icon="pencil-square" wire:click="openTaskInfo({{ $task->id }})">{{ __('Update information') }}</flux:menu.item>
-                                        <flux:menu.item icon="user-plus" wire:click="openMember({{ $task->id }})">{{ __('Assign member') }}</flux:menu.item>
-                                        <flux:menu.item icon="building-office" wire:click="openContact({{ $task->id }})">{{ __('Assign contact') }}</flux:menu.item>
+                                        <flux:menu.item icon="paper-clip" wire:click="$dispatch('add-attachments', { type: 'task', id: {{ $task->id }} })">{{ __('Add attachments') }}</flux:menu.item>
+                                        <flux:menu.item icon="user-plus" wire:click="$dispatch('assign-member', { taskId: {{ $task->id }} })">{{ __('Assign member') }}</flux:menu.item>
+                                        <flux:menu.item icon="building-office" wire:click="$dispatch('assign-contact', { taskId: {{ $task->id }} })">{{ __('Assign contact') }}</flux:menu.item>
                                         <flux:menu.separator />
                                         @if (!$task->status->isCompleted())
                                             <flux:menu.item variant="danger" icon="no-symbol" wire:click="openCancel({{ $task->id }})">{{ __('Cancel task') }}</flux:menu.item>
@@ -115,8 +118,8 @@
                                                                 <flux:menu.item icon="play" wire:click="startTask({{ $subTask->id }})">{{ __('Start task') }}</flux:menu.item>
                                                             @endif
                                                             <flux:menu.item icon="pencil-square" wire:click="openTaskInfo({{ $subTask->id }})">{{ __('Update information') }}</flux:menu.item>
-                                                            <flux:menu.item icon="user-plus" wire:click="openMember({{ $subTask->id }})">{{ __('Assign member') }}</flux:menu.item>
-                                                            <flux:menu.item icon="building-office" wire:click="openContact({{ $subTask->id }})">{{ __('Assign contact') }}</flux:menu.item>
+                                                            <flux:menu.item icon="user-plus" wire:click="$dispatch('assign-member', { taskId: {{ $subTask->id }} })">{{ __('Assign member') }}</flux:menu.item>
+                                                            <flux:menu.item icon="building-office" wire:click="$dispatch('assign-contact', { taskId: {{ $subTask->id }} })">{{ __('Assign contact') }}</flux:menu.item>
                                                         </flux:menu>
                                                     </flux:dropdown>
                                                 @endunless
@@ -131,7 +134,7 @@
                     @unless ($disabled)
                         <flux:card.footer>
                             <div class="flex flex-wrap items-center gap-4">
-                                <flux:button size="sm" variant="subtle" wire:click="openContact({{ $task->id }})">
+                                <flux:button size="sm" variant="subtle" wire:click="$dispatch('assign-contact', { taskId: {{ $task->id }} })">
                                     <span class="flex items-center gap-2">
                                         <flux:avatar
                                             size="xs"
@@ -143,7 +146,7 @@
                                     </span>
                                 </flux:button>
 
-                                <flux:button size="sm" variant="subtle" wire:click="openMember({{ $task->id }})">
+                                <flux:button size="sm" variant="subtle" wire:click="$dispatch('assign-member', { taskId: {{ $task->id }} })">
                                     <span class="flex items-center gap-2">
                                         <flux:avatar
                                             size="xs"
@@ -154,6 +157,10 @@
                                         {{ $task->assignee?->name ?? __('Assign member') }}
                                     </span>
                                 </flux:button>
+
+                                <flux:text class="ms-auto text-xs">
+                                    {{ $task->attachments_count }} {{ $task->attachments_count === 1 ? __('attachment') : __('attachments') }}
+                                </flux:text>
                             </div>
                         </flux:card.footer>
                     @endunless
@@ -180,7 +187,44 @@
                 </flux:card.body>
             </flux:card>
 
-            <flux:card>
+            <flux:card body="divided">
+                <flux:card.header>
+                    <flux:heading size="sm">{{ __('Attachments') }}</flux:heading>
+                </flux:card.header>
+
+                <flux:card.body>
+                    @if ($projectAttachments->isEmpty())
+                        <flux:text class="text-sm">{{ __('No attachments yet.') }}</flux:text>
+                    @else
+                        <flux:table bleed>
+                            <flux:table.rows>
+                                @foreach ($projectAttachments as $attachment)
+                                    <flux:table.row :key="'project-attachment-'.$attachment->id">
+                                        <flux:table.cell>
+                                            <button
+                                                type="button"
+                                                wire:click="$dispatch('edit-attachment', { attachmentId: {{ $attachment->id }} })"
+                                                class="flex min-w-0 items-center gap-2 text-start"
+                                            >
+                                                <flux:icon
+                                                    :icon="$attachment->isImage() ? 'photo' : ($attachment->isPdf() ? 'document-text' : 'document')"
+                                                    class="size-4 shrink-0 text-zinc-500"
+                                                />
+                                                <span class="truncate text-sm">{{ $attachment->name }}</span>
+                                            </button>
+                                        </flux:table.cell>
+                                        <flux:table.cell align="end" class="text-xs whitespace-nowrap">
+                                            {{ $attachment->human_size }}
+                                        </flux:table.cell>
+                                    </flux:table.row>
+                                @endforeach
+                            </flux:table.rows>
+                        </flux:table>
+                    @endif
+                </flux:card.body>
+            </flux:card>
+
+            <flux:card body="divided">
                 <flux:card.header>
                     <flux:heading size="sm">{{ __('Project histories') }}</flux:heading>
                 </flux:card.header>
@@ -218,43 +262,6 @@
                 @endforeach
             </x-ui.select>
 
-            <x-ui.file-upload
-                wire:model="uploads"
-                multiple
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.webp"
-                :label="__('Attachments')"
-                :description="__('PDF, documents or images up to 10 MB each')"
-            >
-                <x-ui.file-upload.dropzone with-progress />
-            </x-ui.file-upload>
-
-            @foreach ($uploads as $index => $upload)
-                <x-ui.file-upload.item
-                    :heading="$upload->getClientOriginalName()"
-                    :size="$upload->getSize()"
-                >
-                    <x-slot:actions>
-                        <x-ui.file-upload.item.remove
-                            wire:click="removeUpload({{ $index }})"
-                            :aria-label="__('Remove :name', ['name' => $upload->getClientOriginalName()])"
-                        />
-                    </x-slot:actions>
-                </x-ui.file-upload.item>
-            @endforeach
-
-            @if ($project->attachments->isNotEmpty())
-                <div class="space-y-2">
-                    @foreach ($project->attachments as $attachment)
-                        <div wire:key="attachment-{{ $attachment->id }}" class="flex items-center justify-between gap-2">
-                            <a href="{{ $attachment->url }}" target="_blank" class="truncate text-sm underline">{{ $attachment->name }}</a>
-                            <flux:button size="xs" variant="subtle" icon="trash" wire:click="removeAttachment({{ $attachment->id }})">
-                                {{ __('Remove') }}
-                            </flux:button>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-
             <div class="flex items-center justify-between">
                 <flux:modal.close>
                     <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
@@ -274,44 +281,6 @@
                     <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button variant="primary" wire:click="saveTaskInfo">{{ __('Save') }}</flux:button>
-            </div>
-        </div>
-    </x-modal>
-
-    <x-modal wire:model.self="showMember" :title="__('Assign member')">
-        <div class="flex flex-col gap-4">
-            <flux:radio.group wire:model="memberId">
-                @foreach ($assignableMembers as $member)
-                    <flux:radio :value="$member->id" :label="$member->name" />
-                @endforeach
-            </flux:radio.group>
-
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
-                <flux:button variant="primary" wire:click="assignMember">{{ __('Assign') }}</flux:button>
-            </div>
-        </div>
-    </x-modal>
-
-    <x-modal wire:model.self="showContact" :title="__('Assign contact')">
-        <div class="flex flex-col gap-4">
-            <flux:radio.group wire:model="contactId">
-                @foreach ($contacts as $contact)
-                    <flux:radio :value="$contact->id" :label="$contact->name" />
-                @endforeach
-            </flux:radio.group>
-
-            <flux:button variant="subtle" icon="plus" wire:click="$dispatch('create-contact', { role: 'vendor' })">
-                {{ __('Add contact') }}
-            </flux:button>
-
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
-                <flux:button variant="primary" wire:click="assignContact">{{ __('Assign') }}</flux:button>
             </div>
         </div>
     </x-modal>
@@ -353,5 +322,8 @@
         </div>
     </x-modal>
 
-    <livewire:contacts.edit />
+    <livewire:projects.partials.assign-member />
+    <livewire:attachments.partials.upload />
+    <livewire:attachments.partials.edit />
+    <livewire:projects.partials.assign-contact />
 </x-page>

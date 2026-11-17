@@ -25,6 +25,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('project_kind_id')->constrained()->cascadeOnDelete();
             $table->foreignId('parent_id')->nullable()->constrained('project_kind_tasks')->cascadeOnDelete();
+            $table->foreignId('contact_id')->nullable()->constrained('organizations')->nullOnDelete();
             $table->unsignedInteger('position');
             $table->string('title');
             $table->text('summary')->nullable();

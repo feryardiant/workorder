@@ -23,7 +23,9 @@ use Illuminate\Support\Number;
  * @property string $path
  * @property string $mime
  * @property int $size
- * @property-read Model $attachable
+ * @property-read Project|Task $attachable
+ * @property-read string $url
+ * @property-read string $human_size
  */
 #[Fillable(['title', 'name', 'path', 'mime', 'size'])]
 class Attachment extends Model

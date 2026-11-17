@@ -8,12 +8,12 @@ use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Attachment;
 use App\Models\Project;
 use App\Models\Task;
-use Flux\Flux;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -33,12 +33,6 @@ class Index extends Component
     public ?string $taskId = null;
 
     public ?string $type = null;
-
-    public bool $showEdit = false;
-
-    public ?int $editingId = null;
-
-    public string $editTitle = '';
 
     /**
      * @return LengthAwarePaginator<int, Attachment>
@@ -125,25 +119,10 @@ class Index extends Component
         $this->resetPage();
     }
 
-    public function openEdit(int $attachmentId): void
+    #[On('attachment-updated')]
+    public function refreshAttachments(): void
     {
-        $attachment = $this->findAttachment($attachmentId);
-
-        $this->editingId = $attachment->getKey();
-        $this->editTitle = $attachment->title;
-        $this->showEdit = true;
-    }
-
-    public function saveEdit(): void
-    {
-        $this->validate(['editTitle' => ['required', 'string', 'max:255']]);
-
-        $this->findAttachment((int) $this->editingId)->update(['title' => $this->editTitle]);
-
-        $this->reset('showEdit', 'editingId', 'editTitle');
         unset($this->attachments);
-
-        Flux::toast(variant: 'success', text: __('Attachment updated.'));
     }
 
     public function render(): ViewContract
@@ -153,7 +132,6 @@ class Index extends Component
             'attachments' => $this->attachments,
             'projects' => $this->projects,
             'tasks' => $this->tasks,
-            'editing' => $this->editingId === null ? null : $this->attachments->firstWhere('id', $this->editingId),
         ])->title(__('Attachments'));
     }
 
@@ -169,16 +147,5 @@ class Index extends Component
             'document' => $query->where('mime', 'not like', 'image/%')->where('mime', '!=', 'application/pdf'),
             default => $query,
         };
-    }
-
-    private function findAttachment(int $attachmentId): Attachment
-    {
-        $attachment = $this->attachments->firstWhere('id', $attachmentId);
-
-        if (! $attachment instanceof Attachment) {
-            abort(404);
-        }
-
-        return $attachment;
     }
 }
