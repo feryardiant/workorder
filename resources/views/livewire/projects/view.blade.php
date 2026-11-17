@@ -28,7 +28,7 @@
         </flux:dropdown>
     </x-slot:actions>
 
-    <div class="flex gap-6">
+    <div class="flex flex-col gap-6 lg:flex-row">
         <div class="flex flex-col gap-4 w-full md:w-5/8">
             @foreach ($tasks as $task)
                 @php($disabled = $task->isDisabled() || $task->status->isCanceled())
@@ -282,6 +282,12 @@
         <x-modal wire:model.self="showEdit" :title="__('Edit project')">
             <div class="flex flex-col gap-4">
                 <flux:input wire:model="title" :label="__('Title')" />
+
+            <x-ui.select wire:model="customerId" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
+                @foreach ($customers as $customer)
+                    <x-ui.select.option value="{{ $customer->id }}" icon="building-office">{{ $customer->name }}</x-ui.select.option>
+                @endforeach
+            </x-ui.select>
                 <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" />
                 <flux:textarea wire:model="remark" :label="__('Remark')" rows="2" />
                 <x-ui.date-picker wire:model="mandatedDate" :label="__('Mandated date')" clearable with-today />

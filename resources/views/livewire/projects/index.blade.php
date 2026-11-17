@@ -40,6 +40,7 @@
         <x-ui.date-picker wire:model.live="finishedRange" mode="range" :aria-label="__('Finished at')" :placeholder="__('Select Finished at range')" clearable with-today />
     </div>
 
+    <div class="overflow-x-auto">
     <flux:table :paginate="$projects">
         <flux:table.columns>
             <flux:table.column class="w-6/12">{{ __('Title') }}</flux:table.column>
@@ -93,8 +94,7 @@
                         <div class="flex flex-col items-center gap-1">
                             <flux:badge size="sm">{{ $project->status->label() }}</flux:badge>
                             @if ($project->status->isOnGoing())
-                                @php([$finished, $total] = $project->taskProgress())
-                                <flux:text class="text-xs">{{ __(':finished/:total tasks', ['finished' => $finished, 'total' => $total]) }}</flux:text>
+                                <flux:text class="text-xs">{{ __(':finished/:total tasks', ['finished' => $project->finished_tasks_count, 'total' => $project->total_tasks_count]) }}</flux:text>
                             @endif
                         </div>
                     </flux:table.cell>
@@ -116,12 +116,13 @@
             @empty
                 <flux:table.row>
                     <flux:table.cell colspan="5">
-                        <flux:text>{{ __('No projects found.') }}</flux:text>
+                        <flux:text>{{ $this->hasProjects ? __('No projects match your filters.') : __('No projects yet.') }}</flux:text>
                     </flux:table.cell>
                 </flux:table.row>
             @endforelse
         </flux:table.rows>
     </flux:table>
+    </div>
 
     <div>
         <x-modal wire:model.self="showCreate" :title="__('New project')">

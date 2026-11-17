@@ -114,7 +114,45 @@ class Index extends Component
             ->get();
     }
 
+    #[Computed]
+    public function hasAttachments(): bool
+    {
+        $organization = $this->currentOrganization();
+
+        if ($organization === null) {
+            return false;
+        }
+
+        $projectIds = Project::query()->where('owner_organization_id', $organization->getKey())->pluck('id');
+        $taskIds = Task::query()->whereIn('project_id', $projectIds)->pluck('id');
+
+        return Attachment::query()
+            ->where(function (Builder $query) use ($projectIds, $taskIds): void {
+                $query->where(function (Builder $query) use ($projectIds): void {
+                    $query->where('attachable_type', (new Project)->getMorphClass())->whereIn('attachable_id', $projectIds);
+                })->orWhere(function (Builder $query) use ($taskIds): void {
+                    $query->where('attachable_type', (new Task)->getMorphClass())->whereIn('attachable_id', $taskIds);
+                });
+            })
+            ->exists();
+    }
+
     public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedProjectId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedTaskId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedType(): void
     {
         $this->resetPage();
     }

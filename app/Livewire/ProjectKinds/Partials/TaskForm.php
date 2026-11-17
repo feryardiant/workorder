@@ -71,6 +71,12 @@ class TaskForm extends Component
             'summary' => ['nullable', 'string', 'max:5000'],
         ]);
 
+        if ($this->contactId !== null && ! $this->contacts->contains('id', $this->contactId)) {
+            $this->addError('contactId', __('Invalid contact.'));
+
+            return;
+        }
+
         foreach ($this->subtasks as $subtask) {
             if (trim($subtask['title']) === '') {
                 $this->addError('subtasks', __('Every sub-task needs a title.'));

@@ -27,6 +27,7 @@
         </x-ui.select>
     </div>
 
+    <div class="overflow-x-auto">
     <flux:table :paginate="$attachments">
         <flux:table.columns>
             <flux:table.column class="w-8/12">{{ __('Title') }}</flux:table.column>
@@ -67,12 +68,13 @@
             @empty
                 <flux:table.row>
                     <flux:table.cell colspan="4">
-                        <flux:text>{{ __('No attachments found.') }}</flux:text>
+                        <flux:text>{{ $this->hasAttachments ? __('No attachments match your filters.') : __('No attachments yet.') }}</flux:text>
                     </flux:table.cell>
                 </flux:table.row>
             @endforelse
         </flux:table.rows>
     </flux:table>
+    </div>
 
     <livewire:attachments.partials.edit />
 </x-page>

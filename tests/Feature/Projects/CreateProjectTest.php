@@ -107,3 +107,24 @@ it('resolves project slugs inside the current tenant', function (): void {
     expect($project->resolveRouteBinding($project->slug)?->is($project))->toBeTrue()
         ->and($foreign->fresh()->slug)->toBe($project->slug);
 });
+
+it('creates task slugs that stay unique across tenants', function (): void {
+    /** @var TestCase $this */
+    $other = Organization::factory()->asTenantOf($this->tenant)->create();
+
+    $make = function (Organization $tenant): Project {
+        $kind = ProjectKind::factory()->create([
+            'owner_organization_id' => $tenant->getKey(),
+            'title' => 'Shared kind',
+        ]);
+
+        ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'Same task']);
+
+        return app(CreateProject::class)->handle($tenant, $kind, contactOrganization($tenant));
+    };
+
+    $first = $make($this->tenant);
+    $second = $make($other);
+
+    expect($first->tasks->first()->slug)->not->toBe($second->tasks->first()->slug);
+});

@@ -93,3 +93,22 @@ it('renders the project kind form', function (): void {
         ->assertOk()
         ->assertSee('Kickoff');
 });
+
+it('rejects contacts from another tenant', function (): void {
+    /** @var TestCase $this */
+    $other = Organization::factory()->asTenantOf($this->tenant)->create();
+    $foreign = contactOrganization($other, ['name' => 'Foreign vendor'], OrganizationRelationshipType::Vendor);
+
+    Livewire::test(ProjectKindForm::class)
+        ->set('title', 'Bad contact')
+        ->set('tasks', [[
+            'title' => 'Task',
+            'summary' => '',
+            'contact_id' => $foreign->getKey(),
+            'subtasks' => [],
+        ]])
+        ->call('save')
+        ->assertHasErrors('tasks');
+
+    expect(ProjectKind::query()->where('title', 'Bad contact')->exists())->toBeFalse();
+});

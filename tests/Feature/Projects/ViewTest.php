@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Projects\CancelTask;
 use App\Actions\Projects\CreateProject;
 use App\Enums\Role;
 use App\Livewire\Projects\View;
@@ -10,6 +11,7 @@ use App\Models\Organization;
 use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -190,4 +192,69 @@ it('renders the project view with its task tree', function (): void {
         ->assertOk()
         ->assertSee('Kickoff')
         ->assertSee('Prepare agenda');
+});
+
+it('lets only managers or the assignee edit and archive a project', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Perms']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+
+    $member = actingAsMember($this->tenant, Role::Member);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openEdit')
+        ->assertForbidden();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('archive')
+        ->assertForbidden();
+
+    $project->update(['assignee_id' => $member->person?->getKey()]);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openEdit')
+        ->assertSet('showEdit', true);
+});
+
+it('updates the customer from the edit modal', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Customer edit']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $replacement = contactOrganization($this->tenant, ['name' => 'Replacement Customer']);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openEdit')
+        ->set('customerId', $replacement->getKey())
+        ->call('saveProject')
+        ->assertHasNoErrors();
+
+    expect($project->refresh()->customer_id)->toBe($replacement->getKey());
+});
+
+it('rejects state changes on finished and canceled records', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Locked states']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $task = $project->tasks->first();
+    $task->update(['started_at' => now()->subHour(), 'finished_at' => now()]);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $task->getKey())
+        ->assertForbidden();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openTaskInfo', $task->getKey())
+        ->assertForbidden();
+
+    expect(fn () => app(CancelTask::class)->handle($task, 'reason'))
+        ->toThrow(ValidationException::class);
+
+    $project->update(['canceled_date' => today()]);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openEdit')
+        ->assertForbidden();
 });

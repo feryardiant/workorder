@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\ProjectKinds;
 
+use App\Enums\OrganizationRelationshipType;
 use App\Events\Projects\ProjectKindChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\AuditLog;
@@ -146,11 +147,26 @@ class Form extends Component
             'summary' => ['nullable', 'string', 'max:5000'],
         ]);
 
+        $allowedContacts = $this->requireOrganization()
+            ->organizationCounterparties(OrganizationRelationshipType::Vendor)
+            ->pluck('organizations.id')
+            ->all();
+
         foreach ($this->tasks as $task) {
             if (trim($task['title']) === '') {
                 $this->addError('tasks', __('Every task needs a title.'));
 
                 return;
+            }
+
+            $contacts = [$task['contact_id'] ?? null, ...array_column($task['subtasks'], 'contact_id')];
+
+            foreach ($contacts as $contactId) {
+                if ($contactId !== null && ! \in_array($contactId, $allowedContacts, true)) {
+                    $this->addError('tasks', __('Invalid contact.'));
+
+                    return;
+                }
             }
         }
 

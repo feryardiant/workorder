@@ -12,6 +12,7 @@ use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
 use App\Models\Task;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -38,7 +39,9 @@ final class CreateProject
             // Serialize the daily sequence per kind.
             ProjectKind::query()->whereKey($kind->getKey())->lockForUpdate()->firstOrFail();
 
-            $code = $this->nextCode($kind);
+            $now = CarbonImmutable::now($actor->timezone ?? 'UTC');
+
+            $code = $this->nextCode($kind, $now);
 
             $project = Project::create([
                 'uuid' => (string) Str::uuid7(),
@@ -52,7 +55,7 @@ final class CreateProject
                     '%s for %s (%s)',
                     $kind->title,
                     $customer->name,
-                    now()->format('d-m-Y'),
+                    $now->format('d-m-Y'),
                 ),
                 'summary' => $data['summary'] ?? null,
                 'remark' => $data['remark'] ?? null,
@@ -72,9 +75,9 @@ final class CreateProject
     /**
      * Build the next daily code for the kind.
      */
-    private function nextCode(ProjectKind $kind): string
+    private function nextCode(ProjectKind $kind, CarbonImmutable $now): string
     {
-        $prefix = \sprintf('%s - %s-', $kind->title, now()->format('Ymd'));
+        $prefix = \sprintf('%s - %s-', $kind->title, $now->format('Ymd'));
 
         $last = Project::withTrashed()
             ->where('code', 'like', $prefix.'%')
@@ -113,8 +116,9 @@ final class CreateProject
             'assignee_id' => $project->assignee_id,
             'contact_id' => $kindTask->contact_id,
             'slug' => Str::slug(\sprintf(
-                '%s-%s-%d-%d',
+                '%s-%d-%s-%d-%d',
                 $project->slug,
+                $project->getKey(),
                 $kindTask->title,
                 $parent === null ? $kindTask->position : $parent->order,
                 $kindTask->position,

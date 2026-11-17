@@ -11,6 +11,7 @@
         @endif
     </x-slot:actions>
 
+    <div class="overflow-x-auto">
     <flux:table :paginate="$kinds">
         <flux:table.columns>
             <flux:table.column class="w-9/12">{{ __('Title') }}</flux:table.column>
@@ -38,4 +39,5 @@
             @endforelse
         </flux:table.rows>
     </flux:table>
+    </div>
 </x-page>

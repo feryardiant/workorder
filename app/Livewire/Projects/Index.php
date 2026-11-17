@@ -28,6 +28,7 @@ use Livewire\WithPagination;
  * @property-read Collection<int, ProjectKind> $kinds
  * @property-read Collection<int, Organization> $customers
  * @property-read Collection<int, Person> $members
+ * @property-read bool $isManager
  */
 class Index extends Component
 {
@@ -84,6 +85,10 @@ class Index extends Component
         return Project::query()
             ->where('owner_organization_id', $organization->getKey())
             ->with(['kind', 'customer', 'assignee'])
+            ->withCount([
+                'tasks as total_tasks_count',
+                'tasks as finished_tasks_count' => fn (Builder $query): Builder => $query->whereNotNull('finished_at'),
+            ])
             ->when($this->search !== '', fn (Builder $query): Builder => $query->where(
                 fn (Builder $query): Builder => $query
                     ->where('title', 'ilike', '%'.$this->search.'%')
@@ -100,13 +105,31 @@ class Index extends Component
             ->paginate(15);
     }
 
+    #[Computed]
+    public function hasProjects(): bool
+    {
+        $organization = $this->currentOrganization();
+
+        return $organization !== null
+            && Project::query()->where('owner_organization_id', $organization->getKey())->exists();
+    }
+
     /**
      * @return Collection<int, ProjectKind>
      */
     #[Computed]
     public function kinds(): Collection
     {
-        return ProjectKind::query()->orderBy('title')->get();
+        $organization = $this->currentOrganization();
+
+        if ($organization === null) {
+            return new Collection;
+        }
+
+        return ProjectKind::query()
+            ->where('owner_organization_id', $organization->getKey())
+            ->orderBy('title')
+            ->get();
     }
 
     /**
@@ -151,6 +174,16 @@ class Index extends Component
     }
 
     public function updatedStatus(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStartedRange(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFinishedRange(): void
     {
         $this->resetPage();
     }
@@ -219,6 +252,8 @@ class Index extends Component
             ->where('owner_organization_id', $organization->getKey())
             ->findOrFail($this->archivingId);
 
+        abort_unless($this->canManageProject($project), 403);
+
         $project->delete();
 
         $this->reset('showArchive', 'archivingId');
@@ -238,6 +273,14 @@ class Index extends Component
             'members' => $this->members,
             'statuses' => ProjectStatus::cases(),
         ])->title(__('Projects'));
+    }
+
+    /**
+     * Owners and admins may manage any project; members only their own.
+     */
+    private function canManageProject(Project $project): bool
+    {
+        return $this->isManager || $project->assignee_id === Auth::user()?->person?->getKey();
     }
 
     /**

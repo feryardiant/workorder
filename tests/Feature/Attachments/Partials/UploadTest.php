@@ -61,3 +61,26 @@ it('uploads attachments for projects and tasks but not sub-tasks', function (): 
         ->call('open', 'task', $subTask->getKey())
         ->assertForbidden();
 });
+
+it('rejects oversized files and unsupported types', function (): void {
+    /** @var TestCase $this */
+    Storage::fake();
+
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Limits']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+
+    Livewire::test(Upload::class)
+        ->call('open', 'project', $project->getKey())
+        ->set('uploads', [UploadedFile::fake()->create('huge.pdf', 10241, 'application/pdf')])
+        ->call('save')
+        ->assertHasErrors('uploads.*');
+
+    Livewire::test(Upload::class)
+        ->call('open', 'project', $project->getKey())
+        ->set('uploads', [UploadedFile::fake()->create('malware.exe', 10, 'application/x-msdownload')])
+        ->call('save')
+        ->assertHasErrors('uploads.*');
+
+    expect($project->attachments()->count())->toBe(0);
+});

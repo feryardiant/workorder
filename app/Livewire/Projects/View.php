@@ -6,15 +6,18 @@ namespace App\Livewire\Projects;
 
 use App\Actions\Projects\CancelProject;
 use App\Actions\Projects\CancelTask;
+use App\Enums\OrganizationRelationshipType;
 use App\Enums\ProjectStatus;
 use App\Events\Projects\ProjectChanged;
 use App\Events\Projects\TaskChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Attachment;
 use App\Models\AuditLog;
+use App\Models\Organization;
 use App\Models\Person;
 use App\Models\Project;
 use App\Models\Task;
+use Carbon\CarbonImmutable;
 use Flux\Flux;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Collection;
@@ -28,6 +31,8 @@ use Livewire\Component;
  * @property-read Collection<int, Task> $tasks
  * @property-read Collection<int, Person> $assignees
  * @property-read Collection<int, Person> $members
+ * @property-read bool $isManager
+ * @property-read Collection<int, Organization> $customers
  * @property-read Collection<int, AuditLog> $timeline
  * @property-read Collection<int, Attachment> $projectAttachments
  * @property-read bool $canFinish
@@ -50,6 +55,8 @@ class View extends Component
     public ?string $mandatedDate = null;
 
     public ?int $assigneeId = null;
+
+    public ?int $customerId = null;
 
     public bool $showTaskInfo = false;
 
@@ -122,6 +129,17 @@ class View extends Component
     }
 
     /**
+     * @return Collection<int, Organization>
+     */
+    #[Computed]
+    public function customers(): Collection
+    {
+        return $this->requireOrganization()
+            ->organizationCounterparties(OrganizationRelationshipType::Customer)
+            ->get();
+    }
+
+    /**
      * Every attachment of the project and its top-level tasks.
      *
      * @return Collection<int, Attachment>
@@ -179,24 +197,33 @@ class View extends Component
 
     public function openEdit(): void
     {
+        abort_unless($this->canManageProject() && ! $this->project->status->isCanceled(), 403);
+
         $this->fillEditForm();
         $this->showEdit = true;
     }
 
     public function saveProject(): void
     {
+        abort_unless($this->canManageProject() && ! $this->project->status->isCanceled(), 403);
+
         $this->validate([
             'title' => ['required', 'string', 'max:255'],
             'summary' => ['nullable', 'string', 'max:5000'],
             'remark' => ['nullable', 'string', 'max:5000'],
             'mandatedDate' => ['nullable', 'date'],
             'assigneeId' => ['nullable', 'integer'],
+            'customerId' => ['required', 'integer'],
         ]);
 
         $assignee = $this->assigneeId === null ? null : $this->members->firstWhere('id', $this->assigneeId);
+        $customer = $this->customers->firstWhere('id', $this->customerId);
+
+        abort_if($customer === null, 422);
 
         $this->project->update([
             'title' => $this->title,
+            'customer_id' => $customer->getKey(),
             'summary' => $this->summary === '' ? null : $this->summary,
             'remark' => $this->remark === '' ? null : $this->remark,
             'mandated_date' => $this->mandatedDate,
@@ -215,6 +242,8 @@ class View extends Component
     {
         $task = $this->findTask($taskId);
 
+        abort_if($task->isDisabled() || $task->status->isCompleted(), 403);
+
         $this->taskInfoId = $task->getKey();
         $this->taskTitle = $task->title;
         $this->taskSummary = (string) $task->summary;
@@ -229,6 +258,8 @@ class View extends Component
         ]);
 
         $task = $this->findTask((int) $this->taskInfoId);
+
+        abort_if($task->isDisabled() || $task->status->isCompleted(), 403);
 
         $task->update([
             'title' => $this->taskTitle,
@@ -248,8 +279,9 @@ class View extends Component
         $task = $this->findTask($taskId);
 
         abort_if($task->isDisabled() || $task->isCanceled(), 403);
+        abort_unless($task->status->isNotStarted(), 403);
 
-        $task->update(['started_at' => now()]);
+        $task->update(['started_at' => $this->now()]);
 
         if ($task->project->status->isNotStarted() || $task->project->status->isScheduled()) {
             $task->project->update(['started_date' => today()]);
@@ -266,10 +298,9 @@ class View extends Component
         $task = $this->findTask($taskId);
 
         abort_if($task->isDisabled() || $task->isCanceled(), 403);
-        abort_if($task->finished_at !== null, 403);
-        abort_if($task->started_at === null || $task->started_at->isFuture(), 403);
+        abort_unless($task->status->isOnGoing(), 403);
 
-        $task->update(['finished_at' => now()]);
+        $task->update(['finished_at' => $this->now()]);
 
         unset($this->tasks, $this->canFinish);
 
@@ -289,13 +320,13 @@ class View extends Component
         $finished = $task->finished_at === null;
 
         $task->update([
-            'finished_at' => $finished ? now() : null,
+            'finished_at' => $finished ? $this->now() : null,
         ]);
 
         $parent = $task->parent;
 
         if ($finished && $parent !== null && $parent->started_at === null) {
-            $parent->update(['started_at' => now()]);
+            $parent->update(['started_at' => $this->now()]);
         }
 
         unset($this->tasks);
@@ -307,7 +338,9 @@ class View extends Component
 
     public function openCancel(int $taskId): void
     {
-        abort_if($this->findTask($taskId)->isSubTask(), 403);
+        $task = $this->findTask($taskId);
+
+        abort_if($task->isSubTask() || $task->status->isCompleted(), 403);
 
         $this->cancelTaskId = $taskId;
         $this->cancelReason = '';
@@ -361,7 +394,7 @@ class View extends Component
     {
         abort_unless($this->canFinish, 403);
 
-        $this->project->update(['finished_date' => today()]);
+        $this->project->update(['finished_date' => $this->todayDate()]);
 
         event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ['action' => 'finished']));
 
@@ -379,6 +412,8 @@ class View extends Component
 
     public function archive(): void
     {
+        abort_unless($this->canManageProject(), 403);
+
         event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ['action' => 'archived']));
 
         $this->project->delete();
@@ -399,6 +434,7 @@ class View extends Component
             'tasks' => $this->tasks,
             'assignees' => $this->assignees,
             'members' => $this->members,
+            'customers' => $this->customers,
             'timeline' => $this->timeline,
             'projectAttachments' => $this->projectAttachments,
         ])->title($this->project->title);
@@ -406,6 +442,7 @@ class View extends Component
 
     private function fillEditForm(): void
     {
+        $this->customerId = $this->project->customer_id;
         $this->title = $this->project->title;
         $this->summary = (string) $this->project->summary;
         $this->remark = (string) $this->project->remark;
@@ -416,6 +453,23 @@ class View extends Component
     /**
      * Resolve a task that belongs to the project.
      */
+    private function canManageProject(): bool
+    {
+        return $this->isManager || $this->project->assignee_id === Auth::user()?->person?->getKey();
+    }
+
+    private function now(): CarbonImmutable
+    {
+        $user = Auth::user();
+
+        return CarbonImmutable::now($user->timezone ?? 'UTC');
+    }
+
+    private function todayDate(): string
+    {
+        return $this->now()->toDateString();
+    }
+
     private function findTask(int $taskId): Task
     {
         return $this->project->allTasks()->with('parent')->findOrFail($taskId);

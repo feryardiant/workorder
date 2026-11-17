@@ -65,6 +65,12 @@ class SubtaskForm extends Component
             'summary' => ['nullable', 'string', 'max:5000'],
         ]);
 
+        if ($this->contactId !== null && ! $this->contacts->contains('id', $this->contactId)) {
+            $this->addError('contactId', __('Invalid contact.'));
+
+            return;
+        }
+
         $this->dispatch('kind-subtask-saved', index: $this->index, subtask: [
             'title' => $this->title,
             'summary' => $this->summary,

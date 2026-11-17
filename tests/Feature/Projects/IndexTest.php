@@ -72,3 +72,15 @@ it('renders the project index', function (): void {
         ->assertSee('Delta')
         ->assertSee($project->title);
 });
+
+it('lists only the current tenant kinds in the create form', function (): void {
+    /** @var TestCase $this */
+    $other = Organization::factory()->asTenantOf($this->tenant)->create();
+
+    ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Mine kind']);
+    ProjectKind::factory()->create(['owner_organization_id' => $other->getKey(), 'title' => 'Foreign kind']);
+
+    Livewire::test(Index::class)
+        ->assertSee('Mine kind')
+        ->assertDontSee('Foreign kind');
+});
