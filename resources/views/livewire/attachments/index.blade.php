@@ -8,26 +8,23 @@
             :aria-label="__('Search attachments')"
         />
 
-        <flux:select wire:model.live="projectId" :aria-label="__('Project')">
-            <flux:select.option value="">{{ __('All projects') }}</flux:select.option>
+        <x-ui.select wire:model.live="projectId" :aria-label="__('Project')" :placeholder="__('All projects')" :empty="__('No projects found')" clearable>
             @foreach ($projects as $project)
-                <flux:select.option value="{{ $project->id }}">{{ $project->title }}</flux:select.option>
+                <x-ui.select.option value="{{ $project->id }}" icon="folder">{{ $project->title }}</x-ui.select.option>
             @endforeach
-        </flux:select>
+        </x-ui.select>
 
-        <flux:select wire:model.live="taskId" :aria-label="__('Task')">
-            <flux:select.option value="">{{ __('All tasks') }}</flux:select.option>
+        <x-ui.select wire:model.live="taskId" :aria-label="__('Task')" :placeholder="__('All tasks')" :empty="__('No tasks found')" clearable>
             @foreach ($tasks as $task)
-                <flux:select.option value="{{ $task->id }}">{{ $task->title }}</flux:select.option>
+                <x-ui.select.option value="{{ $task->id }}">{{ $task->title }}</x-ui.select.option>
             @endforeach
-        </flux:select>
+        </x-ui.select>
 
-        <flux:select wire:model.live="type" :aria-label="__('File type')">
-            <flux:select.option value="">{{ __('All types') }}</flux:select.option>
-            <flux:select.option value="image">{{ __('Image') }}</flux:select.option>
-            <flux:select.option value="pdf">{{ __('PDF') }}</flux:select.option>
-            <flux:select.option value="document">{{ __('Document') }}</flux:select.option>
-        </flux:select>
+        <x-ui.select wire:model.live="type" :aria-label="__('File type')" :placeholder="__('All types')" clearable>
+            <x-ui.select.option value="image">{{ __('Image') }}</x-ui.select.option>
+            <x-ui.select.option value="pdf">{{ __('PDF') }}</x-ui.select.option>
+            <x-ui.select.option value="document">{{ __('Document') }}</x-ui.select.option>
+        </x-ui.select>
     </div>
 
     <flux:table :paginate="$attachments">

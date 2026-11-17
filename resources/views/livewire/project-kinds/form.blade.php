@@ -74,25 +74,31 @@
 
         <div class="flex flex-col gap-4 w-full md:w-3/8">
             <flux:card>
-                <flux:heading size="sm">{{ __('Project histories') }}</flux:heading>
+                <flux:card.header>
+                    <flux:heading size="sm">{{ __('Project histories') }}</flux:heading>
+                </flux:card.header>
 
-                @if ($timeline->isEmpty())
-                    <flux:text class="text-sm">{{ __('No histories yet.') }}</flux:text>
-                @else
-                    <x-ui.timeline>
-                        @foreach ($timeline as $log)
-                            <x-ui.timeline.item :status="$loop->first ? 'current' : 'complete'">
-                                <flux:heading size="sm">{{ $log->event->label() }}</flux:heading>
-                                <flux:text class="text-xs">{{ $log->actor?->name }} &middot; {{ $log->created_at->diffForHumans() }}</flux:text>
-                            </x-ui.timeline.item>
-                        @endforeach
-                    </x-ui.timeline>
-                @endif
+                <flux:card.body>
+                    @if ($timeline->isEmpty())
+                        <flux:text class="text-sm">{{ __('No histories yet.') }}</flux:text>
+                    @else
+                        <x-ui.timeline>
+                            @foreach ($timeline as $log)
+                                <x-ui.timeline.item :status="$loop->first ? 'current' : 'complete'">
+                                    <flux:heading size="sm">{{ $log->event->label() }}</flux:heading>
+                                    <flux:text class="text-xs">
+                                        {{ $log->actor?->name }} &middot; {{ $log->created_at->diffForHumans() }}
+                                    </flux:text>
+                                </x-ui.timeline.item>
+                            @endforeach
+                        </x-ui.timeline>
+                    @endif
+                </flux:card.body>
             </flux:card>
         </div>
     </div>
 
-    <x-modal wire:model.self="showTaskForm" flyout :title="$editingTask === null ? __('Add task') : __('Edit task')">
+    <x-modal wire:model.self="showTaskForm" flyout position="right" variant="floating" :title="$editingTask === null ? __('Add task') : __('Edit task')">
         <div class="space-y-4">
             <flux:input wire:model="taskTitle" :label="__('Title')" />
             <flux:textarea wire:model="taskSummary" :label="__('Summary')" rows="3" />

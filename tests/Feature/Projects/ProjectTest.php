@@ -16,6 +16,7 @@ use App\Models\Project;
 use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -224,6 +225,29 @@ it('creates a project from the index modal', function (): void {
     expect(Project::query()->where('owner_organization_id', $this->tenant->getKey())->sole()->tasks)->toHaveCount(1);
 });
 
+it('filters projects by a started date range', function (): void {
+    $january = Project::factory()->create([
+        'owner_organization_id' => $this->tenant->getKey(),
+        'kind_id' => ProjectKind::factory(['owner_organization_id' => $this->tenant->getKey()]),
+        'customer_id' => contactOrganization($this->tenant)->getKey(),
+        'started_date' => '2026-01-10',
+        'title' => 'January project',
+    ]);
+
+    Project::factory()->create([
+        'owner_organization_id' => $this->tenant->getKey(),
+        'kind_id' => ProjectKind::factory(['owner_organization_id' => $this->tenant->getKey()]),
+        'customer_id' => contactOrganization($this->tenant)->getKey(),
+        'started_date' => '2026-06-10',
+        'title' => 'June project',
+    ]);
+
+    Livewire::test(Index::class)
+        ->set('startedRange', ['start' => '2026-01-01', 'end' => '2026-01-31'])
+        ->assertSee($january->title)
+        ->assertDontSee('June project');
+});
+
 it('renders the project screens', function (): void {
     $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Delta']);
     $first = ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'Kickoff']);
@@ -242,4 +266,57 @@ it('renders the project screens', function (): void {
     Livewire::test(Form::class, ['kind' => $kind->getKey()])
         ->assertOk()
         ->assertSee('Kickoff');
+});
+
+it('opens member and contact assignment for the owner', function (): void {
+    $owner = actingAsMember($this->tenant, Role::Owner);
+    $member = $owner->person;
+
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Theta']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'Active']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $task = $project->tasks->first();
+
+    Livewire::test(View::class, ['project' => $project])
+        ->call('openMember', $task->getKey())
+        ->assertSet('showMember', true)
+        ->call('openContact', $task->getKey())
+        ->assertSet('showContact', true);
+
+    expect($member)->not->toBeNull();
+});
+
+it('hides task actions on a canceled card', function (): void {
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Iota']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'Doomed']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+
+    Livewire::test(View::class, ['project' => $project])
+        ->assertSee('openMember(', false);
+
+    $project->update(['canceled_date' => today(), 'remark' => 'Called off']);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->assertSee(__('Disabled'))
+        ->assertDontSee('openMember(', false)
+        ->assertDontSee('openContact(', false);
+});
+
+it('excludes the current assignee from the member modal', function (): void {
+    $me = auth()->user();
+    $teammate = User::factory()->asMemberOf($this->tenant)->create();
+
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Kappa']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $task = $project->tasks->first();
+    $task->update(['assignee_id' => $me?->person?->getKey()]);
+
+    $component = Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openMember', $task->getKey());
+
+    $ids = $component->viewData('assignableMembers')->pluck('id')->all();
+
+    expect($ids)->not->toContain($me?->person?->getKey())
+        ->and($ids)->toContain($teammate->person?->getKey());
 });

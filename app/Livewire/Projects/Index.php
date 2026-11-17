@@ -41,13 +41,15 @@ class Index extends Component
 
     public ?string $status = null;
 
-    public ?string $startedFrom = null;
+    /**
+     * @var array{start: ?string, end: ?string}
+     */
+    public array $startedRange = ['start' => null, 'end' => null];
 
-    public ?string $startedTo = null;
-
-    public ?string $finishedFrom = null;
-
-    public ?string $finishedTo = null;
+    /**
+     * @var array{start: ?string, end: ?string}
+     */
+    public array $finishedRange = ['start' => null, 'end' => null];
 
     public bool $showCreate = false;
 
@@ -90,10 +92,10 @@ class Index extends Component
             ->when(filled($this->kindId), fn (Builder $query): Builder => $query->where('kind_id', (int) $this->kindId))
             ->when(filled($this->customerId), fn (Builder $query): Builder => $query->where('customer_id', (int) $this->customerId))
             ->when($this->status !== null, fn (Builder $query): Builder => $this->applyStatus($query))
-            ->when($this->startedFrom !== null, fn (Builder $query): Builder => $query->whereDate('started_date', '>=', $this->startedFrom))
-            ->when($this->startedTo !== null, fn (Builder $query): Builder => $query->whereDate('started_date', '<=', $this->startedTo))
-            ->when($this->finishedFrom !== null, fn (Builder $query): Builder => $query->whereDate('finished_date', '>=', $this->finishedFrom))
-            ->when($this->finishedTo !== null, fn (Builder $query): Builder => $query->whereDate('finished_date', '<=', $this->finishedTo))
+            ->when(filled($this->startedRange['start'] ?? null), fn (Builder $query): Builder => $query->whereDate('started_date', '>=', $this->startedRange['start']))
+            ->when(filled($this->startedRange['end'] ?? null), fn (Builder $query): Builder => $query->whereDate('started_date', '<=', $this->startedRange['end']))
+            ->when(filled($this->finishedRange['start'] ?? null), fn (Builder $query): Builder => $query->whereDate('finished_date', '>=', $this->finishedRange['start']))
+            ->when(filled($this->finishedRange['end'] ?? null), fn (Builder $query): Builder => $query->whereDate('finished_date', '<=', $this->finishedRange['end']))
             ->latest('created_at')
             ->paginate(15);
     }

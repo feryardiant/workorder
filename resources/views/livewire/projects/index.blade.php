@@ -18,46 +18,26 @@
             :aria-label="__('Search projects')"
         />
 
-        <flux:select wire:model.live="kindId" :placeholder="__('All kinds')" :aria-label="__('Kind')">
-            <flux:select.option value="">{{ __('All kinds') }}</flux:select.option>
+        <x-ui.select wire:model.live="kindId" :aria-label="__('Kind')" :placeholder="__('All kinds')" :empty="__('No kinds found')" clearable>
             @foreach ($kinds as $kind)
-                <flux:select.option value="{{ $kind->id }}">{{ $kind->title }}</flux:select.option>
+                <x-ui.select.option value="{{ $kind->id }}">{{ $kind->title }}</x-ui.select.option>
             @endforeach
-        </flux:select>
+        </x-ui.select>
 
-        <flux:select wire:model.live="customerId" :placeholder="__('All customers')" :aria-label="__('Customer')">
-            <flux:select.option value="">{{ __('All customers') }}</flux:select.option>
+        <x-ui.select wire:model.live="customerId" :aria-label="__('Customer')" :placeholder="__('All customers')" :empty="__('No customers found')" clearable>
             @foreach ($customers as $customer)
-                <flux:select.option value="{{ $customer->id }}">{{ $customer->name }}</flux:select.option>
+                <x-ui.select.option value="{{ $customer->id }}" icon="building-office">{{ $customer->name }}</x-ui.select.option>
             @endforeach
-        </flux:select>
+        </x-ui.select>
 
-        <flux:select wire:model.live="status" :placeholder="__('All statuses')" :aria-label="__('Status')">
-            <flux:select.option value="">{{ __('All statuses') }}</flux:select.option>
+        <x-ui.select wire:model.live="status" :aria-label="__('Status')" :placeholder="__('All statuses')" clearable>
             @foreach ($statuses as $case)
-                <flux:select.option value="{{ $case->value }}">{{ $case->label() }}</flux:select.option>
+                <x-ui.select.option value="{{ $case->value }}">{{ $case->label() }}</x-ui.select.option>
             @endforeach
-        </flux:select>
+        </x-ui.select>
 
-        <flux:field>
-            <flux:label>{{ __('Started from') }}</flux:label>
-            <flux:input type="date" wire:model.live="startedFrom" />
-        </flux:field>
-
-        <flux:field>
-            <flux:label>{{ __('Started to') }}</flux:label>
-            <flux:input type="date" wire:model.live="startedTo" />
-        </flux:field>
-
-        <flux:field>
-            <flux:label>{{ __('Finished from') }}</flux:label>
-            <flux:input type="date" wire:model.live="finishedFrom" />
-        </flux:field>
-
-        <flux:field>
-            <flux:label>{{ __('Finished to') }}</flux:label>
-            <flux:input type="date" wire:model.live="finishedTo" />
-        </flux:field>
+        <x-ui.date-picker wire:model.live="startedRange" mode="range" :aria-label="__('Started at')" :placeholder="__('Select Started at range')" clearable with-today />
+        <x-ui.date-picker wire:model.live="finishedRange" mode="range" :aria-label="__('Finished at')" :placeholder="__('Select Finished at range')" clearable with-today />
     </div>
 
     <flux:table :paginate="$projects">

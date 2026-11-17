@@ -31,6 +31,7 @@ use Livewire\WithFileUploads;
 /**
  * @property-read Collection<int, Task> $tasks
  * @property-read Collection<int, Person> $assignees
+ * @property-read Collection<int, Person> $assignableMembers
  * @property-read Collection<int, Person> $members
  * @property-read Collection<int, Organization> $contacts
  * @property-read Collection<int, AuditLog> $timeline
@@ -142,6 +143,25 @@ class View extends Component
     }
 
     /**
+     * Members other than the current assignee of the task being assigned.
+     *
+     * @return Collection<int, Person>
+     */
+    #[Computed]
+    public function assignableMembers(): Collection
+    {
+        if ($this->memberTaskId === null) {
+            return $this->members;
+        }
+
+        $assigneeId = $this->project->allTasks()->whereKey($this->memberTaskId)->value('assignee_id');
+
+        return $this->members
+            ->reject(fn (Person $person): bool => $person->getKey() === $assigneeId)
+            ->values();
+    }
+
+    /**
      * @return Collection<int, Organization>
      */
     #[Computed]
@@ -230,6 +250,15 @@ class View extends Component
         $fileStorage->delete($attachment->path);
 
         $attachment->delete();
+    }
+
+    public function removeUpload(int $index): void
+    {
+        if (! isset($this->uploads[$index])) {
+            return;
+        }
+
+        array_splice($this->uploads, $index, 1);
     }
 
     public function openTaskInfo(int $taskId): void
@@ -455,6 +484,7 @@ class View extends Component
             'tasks' => $this->tasks,
             'assignees' => $this->assignees,
             'members' => $this->members,
+            'assignableMembers' => $this->assignableMembers,
             'contacts' => $this->contacts,
             'timeline' => $this->timeline,
         ])->title($this->project->title);

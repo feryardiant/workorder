@@ -639,5 +639,16 @@
     "Choose a customer...": "Pilih pelanggan...",
     "No customers found": "Pelanggan tidak ditemukan",
     "Choose an assignee...": "Pilih penanggung jawab...",
-    "No members found": "Anggota tidak ditemukan"
+    "No members found": "Anggota tidak ditemukan",
+    "Started at": "Dimulai pada",
+    "Finished at": "Selesai pada",
+    "No tasks found": "Tugas tidak ditemukan",
+    "No projects found": "Proyek tidak ditemukan",
+    "Project": "Proyek",
+    "Task": "Tugas",
+    "Select Started at range": "Pilih rentang tanggal mulai",
+    "Select Finished at range": "Pilih rentang tanggal selesai",
+    "Disabled": "Dinonaktifkan",
+    "PDF, documents or images up to 10 MB each": "PDF, dokumen, atau gambar maksimal 10 MB per berkas",
+    "Remove :name": "Hapus :name"
 }

@@ -35,7 +35,15 @@
                     {{-- flex items-start justify-between gap-3 --}}
                     <flux:card.header class="">
                         <div class="space-y-1">
-                            <flux:heading size="sm">{{ $task->title }}</flux:heading>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <flux:heading size="sm">{{ $task->title }}</flux:heading>
+
+                                @if ($task->isCanceled())
+                                    <flux:badge size="sm" color="red">{{ __('Canceled') }}</flux:badge>
+                                @elseif ($disabled)
+                                    <flux:badge size="sm" color="zinc">{{ __('Disabled') }}</flux:badge>
+                                @endif
+                            </div>
                             @if (filled($task->summary))
                                 <flux:text class="text-sm">{{ $task->summary }}</flux:text>
                             @endif
@@ -113,25 +121,35 @@
                         </flux:card.body>
                     @endif
 
-                    <flux:card.footer>
-                        <div class="flex flex-wrap items-center gap-4">
-                            <flux:button size="sm" variant="subtle" icon="building-office" wire:click="openContact({{ $task->id }})">
-                                @if ($task->contact !== null)
-                                    {{ $task->contact->name }}
-                                @else
-                                    {{ __('Assign contact') }}
-                                @endif
-                            </flux:button>
+                    @unless ($disabled)
+                        <flux:card.footer>
+                            <div class="flex flex-wrap items-center gap-4">
+                                <flux:button size="sm" variant="subtle" wire:click="openContact({{ $task->id }})">
+                                    <span class="flex items-center gap-2">
+                                        <flux:avatar
+                                            size="xs"
+                                            :src="$task->contact?->logo_url"
+                                            :name="$task->contact?->name"
+                                            :initials="$task->contact?->initials()"
+                                        />
+                                        {{ $task->contact?->name ?? __('Assign contact') }}
+                                    </span>
+                                </flux:button>
 
-                            <flux:button size="sm" variant="subtle" icon="user" wire:click="openMember({{ $task->id }})">
-                                @if ($task->assignee !== null)
-                                    {{ $task->assignee->name }}
-                                @else
-                                    {{ __('Assign member') }}
-                                @endif
-                            </flux:button>
-                        </div>
-                    </flux:card.footer>
+                                <flux:button size="sm" variant="subtle" wire:click="openMember({{ $task->id }})">
+                                    <span class="flex items-center gap-2">
+                                        <flux:avatar
+                                            size="xs"
+                                            :src="$task->assignee?->photo_url"
+                                            :name="$task->assignee?->name"
+                                            :initials="$task->assignee?->initials()"
+                                        />
+                                        {{ $task->assignee?->name ?? __('Assign member') }}
+                                    </span>
+                                </flux:button>
+                            </div>
+                        </flux:card.footer>
+                    @endunless
                 </flux:card>
             @endforeach
         </div>
@@ -139,35 +157,43 @@
         <aside class="flex flex-col gap-4 w-full md:w-3/8">
             <flux:card>
                 @if (filled($project->summary))
-                    <flux:text>{{ $project->summary }}</flux:text>
+                    <flux:card.header>
+                        <flux:text class="text-base/7">{{ $project->summary }}</flux:text>
+                    </flux:card.header>
                 @endif
 
-                @if ($assignees->isNotEmpty())
-                    <flux:avatar.group>
-                        @foreach ($assignees as $person)
-                            <flux:avatar size="sm" :src="$person->photo_url" :name="$person->name" :initials="$person->initials()" />
-                        @endforeach
-                    </flux:avatar.group>
-                @endif
+                <flux:card.body>
+                    @if ($assignees->isNotEmpty())
+                        <flux:avatar.group>
+                            @foreach ($assignees as $person)
+                                <flux:avatar size="sm" :src="$person->photo_url" :name="$person->name" :initials="$person->initials()" />
+                            @endforeach
+                        </flux:avatar.group>
+                    @endif
+                </flux:card.body>
             </flux:card>
 
             <flux:card>
-                <flux:heading size="sm">{{ __('Project histories') }}</flux:heading>
+                <flux:card.header>
+                    <flux:heading size="sm">{{ __('Project histories') }}</flux:heading>
+                </flux:card.header>
 
-                @if ($timeline->isEmpty())
-                    <flux:text class="text-sm">{{ __('No histories yet.') }}</flux:text>
-                @else
-                    <x-ui.timeline>
-                        @foreach ($timeline as $log)
-                            <x-ui.timeline.item :status="$loop->first ? 'current' : 'complete'">
-                                <flux:heading size="sm">{{ $log->event->label() }}</flux:heading>
-                                <flux:text class="text-xs">
-                                    {{ $log->actor?->name }} &middot; {{ $log->created_at->diffForHumans() }}
-                                </flux:text>
-                            </x-ui.timeline.item>
-                        @endforeach
-                    </x-ui.timeline>
-                @endif
+                <flux:card.body>
+                    @if ($timeline->isEmpty())
+                        <flux:text class="text-sm">{{ __('No histories yet.') }}</flux:text>
+                    @else
+                        <x-ui.timeline>
+                            @foreach ($timeline as $log)
+                                <x-ui.timeline.item :status="$loop->first ? 'current' : 'complete'">
+                                    <flux:heading size="sm">{{ $log->event->label() }}</flux:heading>
+                                    <flux:text class="text-xs">
+                                        {{ $log->actor?->name }} &middot; {{ $log->created_at->diffForHumans() }}
+                                    </flux:text>
+                                </x-ui.timeline.item>
+                            @endforeach
+                        </x-ui.timeline>
+                    @endif
+                </flux:card.body>
             </flux:card>
         </aside>
     </div>
@@ -177,20 +203,37 @@
             <flux:input wire:model="title" :label="__('Title')" />
             <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" />
             <flux:textarea wire:model="remark" :label="__('Remark')" rows="2" />
-            <flux:input type="date" wire:model="mandatedDate" :label="__('Mandated date')" />
+            <x-ui.date-picker wire:model="mandatedDate" :label="__('Mandated date')" clearable with-today />
 
-            <flux:select wire:model="assigneeId" :label="__('Assignee')">
-                <flux:select.option value="">{{ __('Unassigned') }}</flux:select.option>
+            <x-ui.select wire:model="assigneeId" :label="__('Assignee')" :placeholder="__('Unassigned')" :empty="__('No members found')" clearable>
                 @foreach ($members as $member)
-                    <flux:select.option value="{{ $member->id }}">{{ $member->name }}</flux:select.option>
+                    <x-ui.select.option value="{{ $member->id }}" icon="user">{{ $member->name }}</x-ui.select.option>
                 @endforeach
-            </flux:select>
+            </x-ui.select>
 
-            <flux:field>
-                <flux:label>{{ __('Attachments') }}</flux:label>
-                <flux:input type="file" wire:model="uploads" multiple />
-                <flux:error name="uploads.*" />
-            </flux:field>
+            <x-ui.file-upload
+                wire:model="uploads"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.webp"
+                :label="__('Attachments')"
+                :description="__('PDF, documents or images up to 10 MB each')"
+            >
+                <x-ui.file-upload.dropzone with-progress />
+            </x-ui.file-upload>
+
+            @foreach ($uploads as $index => $upload)
+                <x-ui.file-upload.item
+                    :heading="$upload->getClientOriginalName()"
+                    :size="$upload->getSize()"
+                >
+                    <x-slot:actions>
+                        <x-ui.file-upload.item.remove
+                            wire:click="removeUpload({{ $index }})"
+                            :aria-label="__('Remove :name', ['name' => $upload->getClientOriginalName()])"
+                        />
+                    </x-slot:actions>
+                </x-ui.file-upload.item>
+            @endforeach
 
             @if ($project->attachments->isNotEmpty())
                 <div class="space-y-2">
@@ -231,7 +274,7 @@
     <x-modal wire:model.self="showMember" :title="__('Assign member')">
         <div class="space-y-4">
             <flux:radio.group wire:model="memberId">
-                @foreach ($members as $member)
+                @foreach ($assignableMembers as $member)
                     <flux:radio :value="$member->id" :label="$member->name" />
                 @endforeach
             </flux:radio.group>
