@@ -1,5 +1,3 @@
-name: laravel-template
-
 # Local stand-in for the staging server: runs the real staging image (built by
 # `app`, pulled as-is by `schedule` and `queue`) with the same service layout, so
 # it can be smoke-tested before deploying. Only the convenience bits differ from

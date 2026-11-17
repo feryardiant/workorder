@@ -1,5 +1,3 @@
-name: laravel-template
-
 services:
   app:
     extends:
@@ -58,7 +56,6 @@ services:
 
 networks:
   default:
-    # name: laravel-template
     enable_ipv6: false
 
 volumes:
