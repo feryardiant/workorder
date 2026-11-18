@@ -56,6 +56,11 @@
                 :disabled="$this->sharedFieldsLocked"
             />
 
+            @unless ($this->reusing)
+                <flux:input wire:model="contact_email" type="email" :label="__('Email')" autocomplete="off" />
+                <flux:input wire:model="contact_phone" type="tel" :label="__('Phone')" autocomplete="off" />
+            @endunless
+
             @unless ($this->sharedFieldsLocked)
                 <flux:card body="divided">
                     <flux:card.header>
@@ -157,6 +162,11 @@
                         :label="__('Summary')"
                         :disabled="$this->sharedFieldsLocked"
                     />
+
+                    @unless ($this->reusing)
+                        <flux:input wire:model="contact_person_email" type="email" :label="__('Email')" autocomplete="off" />
+                        <flux:input wire:model="contact_person_phone" type="tel" :label="__('Phone')" autocomplete="off" />
+                    @endunless
                     </flux:card.body>
                 </flux:card>
             @endif

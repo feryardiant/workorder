@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\AuditEvent;
+use App\Enums\ContactDetailType;
 use App\Enums\Role;
 use App\Livewire\OrgSettings\General;
 use App\Models\AuditLog;
@@ -55,6 +56,21 @@ it('updates the organization summary', function () {
         ->assertHasNoErrors();
 
     expect($organization->fresh()->summary)->toBe('New summary');
+});
+
+it('updates the organization contact details', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    Livewire::test(General::class)
+        ->set('contact_email', 'Hello@Acme.Test')
+        ->set('contact_phone', '0812 3456')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    expect($organization->fresh()->contactDetailValue(ContactDetailType::Email))->toBe('hello@acme.test')
+        ->and($organization->fresh()->contactDetailValue(ContactDetailType::Phone))->toBe('0812 3456');
 });
 
 it('requires a name', function () {

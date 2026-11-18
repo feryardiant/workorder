@@ -5,11 +5,13 @@ declare(strict_types=1);
 use App\Actions\FileStorage;
 use App\Enums\ApprovalRequestStatus;
 use App\Enums\ApprovalRequestType;
+use App\Enums\ContactDetailType;
 use App\Enums\OrganizationRelationshipType;
 use App\Enums\Role;
 use App\Jobs\DeleteOrganization;
 use App\Models\Address;
 use App\Models\ApprovalRequest;
+use App\Models\ContactDetail;
 use App\Models\Organization;
 use App\Models\OrganizationRelationship;
 use App\Models\Person;
@@ -98,6 +100,10 @@ test('it tombstones an externally referenced organization', function () {
         'name' => 'Customer Org',
         'logo_url' => 'logos/customer.png',
     ]);
+    $customer->contactDetails()->create([
+        'type' => ContactDetailType::Email,
+        'value' => 'retain@acme.test',
+    ]);
     $customer->members()->attach($customerOwner->person, [
         'type' => OrganizationRelationshipType::Member,
         'role' => Role::Owner,
@@ -133,6 +139,10 @@ test('it tombstones an externally referenced organization', function () {
             ->where('addressable_id', $customer->getKey())
             ->where('addressable_type', Organization::class)
             ->exists())->toBeFalse()
+        ->and(ContactDetail::query()
+            ->where('contactable_id', $customer->getKey())
+            ->where('contactable_type', Organization::class)
+            ->exists())->toBeTrue()
         ->and($customerOwner->fresh()->roleIn($customer))->toBeNull();
 
     Storage::disk()->assertMissing('logos/customer.png');

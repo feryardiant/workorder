@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ContactDetailType;
 use App\Enums\Gender;
 use App\Enums\Role;
 use App\Livewire\Members\View;
@@ -26,6 +27,23 @@ test('a member can be viewed by uuid', function () {
     get(route('members.show', $member->person))
         ->assertOk()
         ->assertSee('Viewable Member');
+});
+
+test('the member view displays contact details', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $member = User::factory()->asMemberOf($organization)->create(['name' => 'Contactable Member']);
+    $member->person->contactDetails()->createMany([
+        ['type' => ContactDetailType::Email, 'value' => 'reach@example.test'],
+        ['type' => ContactDetailType::Phone, 'value' => '0812 3456'],
+    ]);
+
+    get(route('members.show', $member->person))
+        ->assertOk()
+        ->assertSee('reach@example.test')
+        ->assertSee('0812 3456');
 });
 
 test('a member from another organization is not found', function () {

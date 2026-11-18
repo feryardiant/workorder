@@ -70,7 +70,7 @@
         @endif
     </x-slot:actions>
 
-    <div class="flex gap-6">
+    <div class="flex flex-col gap-6 md:flex-row">
         <div class="flex flex-col gap-4 w-full md:w-5/8">
             <x-project-list :projects="$this->projects" />
         </div>
@@ -86,6 +86,16 @@
                 <div>
                     <flux:text>{{ __('Email') }}</flux:text>
                     <flux:heading>{{ $person->user?->email ?? __('No login credential') }}</flux:heading>
+                </div>
+
+                <div>
+                    <flux:text>{{ __('Contact email') }}</flux:text>
+                    <flux:heading class="break-words">{{ $contactEmail ?: '—' }}</flux:heading>
+                </div>
+
+                <div>
+                    <flux:text>{{ __('Contact phone') }}</flux:text>
+                    <flux:heading class="break-words">{{ $contactPhone ?: '—' }}</flux:heading>
                 </div>
 
                 <div>
