@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ContactDetailType;
 use App\Enums\Role;
 use App\Livewire\Members\Form;
 use App\Models\Organization;
@@ -61,6 +62,26 @@ test('an admin can add a member with an invite credential', function () {
     Notification::assertSentTo($user, VerifyEmailForNewUser::class, function (VerifyEmailForNewUser $notification) use ($user): bool {
         return str_contains((string) $notification->toMail($user)->render(), $user->handle);
     });
+});
+
+test('an admin can add a member with contact details', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Admin);
+
+    Livewire::test(Form::class)->call('openCreate')
+        ->set('name', 'Contactable Member')
+        ->set('role', Role::Member->value)
+        ->set('contact_email', 'Reach@Example.Test')
+        ->set('contact_phone', '0812 3456')
+        ->call('create')
+        ->assertHasNoErrors();
+
+    $person = Person::query()->where('name', 'Contactable Member')->firstOrFail();
+
+    expect($person->user_id)->toBeNull()
+        ->and($person->contactDetailValue(ContactDetailType::Email))->toBe('reach@example.test')
+        ->and($person->contactDetailValue(ContactDetailType::Phone))->toBe('0812 3456');
 });
 
 test('the owner role cannot be assigned when adding a member', function () {

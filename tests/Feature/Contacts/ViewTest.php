@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ContactDetailType;
 use App\Enums\Gender;
 use App\Enums\OrganizationRelationshipType;
 use App\Enums\Role;
@@ -162,4 +163,21 @@ test('an organization contact lists projects they are the customer of', function
         ->assertSee('Project Handler')
         ->assertSee('Customer Projects')
         ->assertDontSee('Other Customer Projects');
+});
+
+test('the contact view displays the email and phone', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Member);
+
+    $contact = contactIndividual($organization, ['name' => 'Detail Individual']);
+    $contact->contactDetails()->createMany([
+        ['type' => ContactDetailType::Email, 'value' => 'detail@acme.test'],
+        ['type' => ContactDetailType::Phone, 'value' => '0812 999'],
+    ]);
+
+    get(route('contacts.view', ['stakeholder' => $contact]))
+        ->assertOk()
+        ->assertSee('detail@acme.test')
+        ->assertSee('0812 999');
 });
