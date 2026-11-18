@@ -187,6 +187,6 @@
             </div>
         </x-modal>
 
-        <livewire:contacts.edit />
+        <livewire:contacts.form />
     </div>
 </x-page>

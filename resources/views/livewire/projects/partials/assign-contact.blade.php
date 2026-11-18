@@ -18,5 +18,5 @@
         </div>
     </div>
 
-    <livewire:contacts.edit />
+    <livewire:contacts.form />
 </x-modal>

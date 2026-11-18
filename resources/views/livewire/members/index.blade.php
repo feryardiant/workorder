@@ -325,6 +325,6 @@
             </div>
         </x-modal>
 
-        <livewire:members.edit />
+        <livewire:members.form />
     </div>
 </x-page>

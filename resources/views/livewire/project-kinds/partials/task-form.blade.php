@@ -58,5 +58,5 @@
     </div>
 
     <livewire:project-kinds.partials.subtask-form />
-    <livewire:contacts.edit />
+    <livewire:contacts.form />
 </x-modal>
