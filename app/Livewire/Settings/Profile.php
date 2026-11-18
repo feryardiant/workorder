@@ -191,6 +191,13 @@ class Profile extends Component
         $this->avatar_url = $photoPath;
         $this->gender = $user->fresh()?->person?->gender?->value;
 
+        // Refresh the baseline so a later unrelated save does not resubmit values.
+        $person = $user->fresh()?->person;
+        $this->contact_email = (string) $person?->contactDetailValue(ContactDetailType::Email);
+        $this->contact_phone = (string) $person?->contactDetailValue(ContactDetailType::Phone);
+        $this->original_contact_email = $this->contact_email;
+        $this->original_contact_phone = $this->contact_phone;
+
         Flux::toast(variant: 'success', text: __('Profile updated.'));
     }
 

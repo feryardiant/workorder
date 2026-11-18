@@ -100,6 +100,25 @@ test('an unrelated profile save does not revert a newer contact email', function
         ->and($user->fresh()?->handle)->toBe('renamed1');
 });
 
+test('a profile save after its own contact save keeps a newer contact email', function () {
+    actingAs($user = User::factory()->create());
+
+    $mine = Livewire::test(Profile::class)
+        ->set('contact_email', 'mine@acme.test')
+        ->call('updateProfileInformation')
+        ->assertHasNoErrors();
+
+    Livewire::test(Profile::class)
+        ->set('contact_email', 'newer@acme.test')
+        ->call('updateProfileInformation')
+        ->assertHasNoErrors();
+
+    $mine->set('handle', 'renamed2')->call('updateProfileInformation')->assertHasNoErrors();
+
+    expect($user->fresh()?->person?->contactDetailValue(ContactDetailType::Email))->toBe('newer@acme.test')
+        ->and($user->fresh()?->handle)->toBe('renamed2');
+});
+
 test('an org-owned profile is locked until the workspace enables self-edit', function () {
     $organization = Organization::factory()->create();
     $user = User::factory()->withProfile()->create();

@@ -173,6 +173,12 @@ class General extends Component
             throw $exception;
         }
 
+        // Refresh the baseline so a later unrelated save does not resubmit values.
+        $this->contact_email = (string) $organization->contactDetailValue(ContactDetailType::Email);
+        $this->contact_phone = (string) $organization->contactDetailValue(ContactDetailType::Phone);
+        $this->original_contact_email = $this->contact_email;
+        $this->original_contact_phone = $this->contact_phone;
+
         if ($removeLogo && ! $fileStorage->delete($previousLogo)) {
             $restored = Organization::query()
                 ->whereKey($organization->getKey())

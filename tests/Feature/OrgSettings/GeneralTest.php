@@ -91,6 +91,27 @@ it('an unrelated organization save does not revert a newer contact email', funct
         ->and($organization->fresh()->summary)->toBe('Updated summary');
 });
 
+it('an organization save after its own contact save keeps a newer contact email', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $mine = Livewire::test(General::class)
+        ->set('contact_email', 'mine@acme.test')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    Livewire::test(General::class)
+        ->set('contact_email', 'newer@acme.test')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    $mine->set('summary', 'Later summary')->call('update')->assertHasNoErrors();
+
+    expect($organization->fresh()->contactDetailValue(ContactDetailType::Email))->toBe('newer@acme.test')
+        ->and($organization->fresh()->summary)->toBe('Later summary');
+});
+
 it('requires a name', function () {
     $organization = Organization::factory()->create(['name' => 'Old Name']);
 
