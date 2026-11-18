@@ -72,7 +72,7 @@
 
     <div class="flex gap-6">
         <div class="flex flex-col gap-4 w-full md:w-5/8">
-            {{--  --}}
+            <x-project-list :projects="$this->projects" />
         </div>
 
         <div class="flex flex-col gap-4 w-full md:w-3/8">

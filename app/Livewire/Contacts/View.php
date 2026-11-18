@@ -9,17 +9,20 @@ use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Organization;
 use App\Models\OrganizationRelationship;
 use App\Models\OrganizationRelationshipPeriod;
+use App\Models\Project;
 use App\Support\Feature\ContactGender;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class View extends Component
 {
-    use HasCurrentOrganization;
+    use HasCurrentOrganization, WithPagination;
 
     #[Locked]
     public OrganizationRelationship $contact;
@@ -47,6 +50,32 @@ class View extends Component
             ->orderByDesc('start_date')
             ->orderByDesc('id')
             ->get();
+    }
+
+    /**
+     * Projects tied to the contact: assigned to a person, or ordered by an organization customer.
+     *
+     * @return LengthAwarePaginator<int, Project>
+     */
+    #[Computed]
+    public function projects(): LengthAwarePaginator
+    {
+        $stakeholder = $this->contact->stakeholder;
+
+        if ($stakeholder === null) {
+            return new LengthAwarePaginator([], 0, 10);
+        }
+
+        return Project::query()
+            ->where('owner_organization_id', $this->requireOrganization()->getKey())
+            ->when(
+                $stakeholder instanceof Organization,
+                fn ($query) => $query->where('customer_id', $stakeholder->getKey()),
+                fn ($query) => $query->where('assignee_id', $stakeholder->getKey()),
+            )
+            ->with(['kind', 'customer', 'assignee'])
+            ->latest('created_at')
+            ->paginate(10);
     }
 
     public function render(): ViewContract

@@ -32,6 +32,8 @@
                     </flux:callout.text>
                 </flux:callout>
             @endif
+
+            <x-project-list :projects="$this->projects" assignee />
         </div>
 
         <div class="flex flex-col gap-4 w-full md:w-3/8">

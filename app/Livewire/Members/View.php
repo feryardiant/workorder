@@ -10,18 +10,21 @@ use App\Enums\Role;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\OrganizationRelationshipPeriod;
 use App\Models\Person;
+use App\Models\Project;
 use App\Models\User;
 use Flux\Flux;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class View extends Component
 {
-    use HasCurrentOrganization;
+    use HasCurrentOrganization, WithPagination;
 
     public Person $person;
 
@@ -114,6 +117,22 @@ class View extends Component
             ->orderByDesc('start_date')
             ->orderByDesc('id')
             ->get();
+    }
+
+    /**
+     * Projects assigned to the member.
+     *
+     * @return LengthAwarePaginator<int, Project>
+     */
+    #[Computed]
+    public function projects(): LengthAwarePaginator
+    {
+        return Project::query()
+            ->where('owner_organization_id', $this->requireOrganization()->getKey())
+            ->where('assignee_id', $this->person->getKey())
+            ->with(['kind', 'customer'])
+            ->latest('created_at')
+            ->paginate(10);
     }
 
     #[Computed]
