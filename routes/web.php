@@ -8,13 +8,18 @@ use App\Http\Controllers\NotificationPollerController;
 use App\Http\Controllers\StoredFileController;
 use App\Http\Controllers\UpdatePreferencesController;
 use App\Http\Controllers\VerifyNewUserEmailController;
+use App\Livewire\Attachments\Index as AttachmentIndex;
 use App\Livewire\Contacts\Index as ContactIndex;
 use App\Livewire\Contacts\View as ContactView;
 use App\Livewire\Dashboard;
 use App\Livewire\Members\Index as MemberIndex;
-use App\Livewire\Members\Show as MemberShow;
+use App\Livewire\Members\View as MemberView;
 use App\Livewire\Notifications\Index as NotificationIndex;
 use App\Livewire\OrgSettings;
+use App\Livewire\ProjectKinds\Form as ProjectKindForm;
+use App\Livewire\ProjectKinds\Index as ProjectKindIndex;
+use App\Livewire\Projects\Index as ProjectIndex;
+use App\Livewire\Projects\View as ProjectView;
 use App\Livewire\Settings\Organizations;
 use App\Livewire\Settings\Preferences;
 use App\Livewire\Settings\Profile;
@@ -34,13 +39,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('dashboard', Dashboard::class)->name('dashboard');
 
     Route::livewire('members', MemberIndex::class)->name('members.index');
-    Route::livewire('members/{person}', MemberShow::class)->name('members.show');
+    Route::livewire('members/{person}', MemberView::class)->name('members.show');
 
     Route::livewire('contacts', ContactIndex::class)->name('contacts.index');
     Route::get('contacts/lookup', ContactLookupController::class)
         ->middleware('throttle:60,1')
         ->name('contacts.lookup');
     Route::livewire('contacts/{stakeholder}', ContactView::class)->name('contacts.view');
+
+    Route::livewire('projects', ProjectIndex::class)->name('projects.index');
+    Route::livewire('projects/{project}', ProjectView::class)->name('projects.view');
+
+    Route::livewire('project-kinds', ProjectKindIndex::class)->name('project-kinds.index');
+    Route::livewire('project-kinds/create', ProjectKindForm::class)->name('project-kinds.create');
+    Route::livewire('project-kinds/{kind}', ProjectKindForm::class)->name('project-kinds.edit');
+
+    Route::livewire('attachments', AttachmentIndex::class)->name('attachments.index');
 
     Route::prefix('org-settings')->group(function () {
         Route::redirect('', 'org-settings/general');

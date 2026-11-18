@@ -72,7 +72,7 @@
         </a>
     </div>
 
-    <section data-ui-demo="popover-scroll" class="space-y-4">
+    <section data-ui-demo="popover-scroll" class="flex flex-col gap-4">
         <div class="max-w-sm">
             <x-ui.select name="scroll_industry" label="Scroll target" placeholder="Pick one">
                 <x-ui.select.option value="design">Design services</x-ui.select.option>

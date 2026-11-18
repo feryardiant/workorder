@@ -62,9 +62,14 @@
     </x-slot:actions>
 
     @if ($organization === null)
-        <flux:card class="max-w-lg">
-            <flux:heading>{{ __('No organization') }}</flux:heading>
-            <flux:text class="mt-2">{{ __('You are not a member of any organization.') }}</flux:text>
+        <flux:card class="max-w-lg" body="divided">
+            <flux:card.header>
+                <flux:heading>{{ __('No organization') }}</flux:heading>
+            </flux:card.header>
+
+            <flux:card.body>
+                <flux:text>{{ __('You are not a member of any organization.') }}</flux:text>
+            </flux:card.body>
         </flux:card>
     @else
         <div class="flex justify-end">
@@ -158,7 +163,7 @@
                                         {{ $stakeholder->name }}
                                     </a>
 
-                                    <flux:badge size="sm" color="zinc">
+                                    <flux:badge size="sm" :color="$contact->type->color()">
                                         {{ $contact->type->label() }}
                                     </flux:badge>
 
@@ -254,41 +259,43 @@
         </flux:checkbox.group>
     @endif
 
-    <x-modal
-        wire:model.self="showDeleteModal"
-        :title="__('Delete contact')"
-        :subtitle="__('Delete :name from your contacts?', ['name' => $deletingContactName ?? __('this contact')])"
-    >
-        <div class="space-y-6">
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
+    <div>
+        <x-modal
+            wire:model.self="showDeleteModal"
+            :title="__('Delete contact')"
+            :subtitle="__('Delete :name from your contacts?', ['name' => $deletingContactName ?? __('this contact')])"
+        >
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
 
-                <flux:button variant="danger" wire:click="deleteConfirmed">
-                    {{ __('Delete contact') }}
-                </flux:button>
+                    <flux:button variant="danger" wire:click="deleteConfirmed">
+                        {{ __('Delete contact') }}
+                    </flux:button>
+                </div>
             </div>
-        </div>
-    </x-modal>
+        </x-modal>
 
-    <x-modal
-        wire:model.self="showBatchDeleteModal"
-        :title="__('Delete contacts')"
-        :subtitle="__('Delete :count selected contacts?', ['count' => count($selected)])"
-    >
-        <div class="space-y-6">
-            <div class="flex items-center justify-between">
-                <flux:modal.close>
-                    <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
-                </flux:modal.close>
+        <x-modal
+            wire:model.self="showBatchDeleteModal"
+            :title="__('Delete contacts')"
+            :subtitle="__('Delete :count selected contacts?', ['count' => count($selected)])"
+        >
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
 
-                <flux:button variant="danger" wire:click="deleteSelectedConfirmed">
-                    {{ __('Delete contacts') }}
-                </flux:button>
+                    <flux:button variant="danger" wire:click="deleteSelectedConfirmed">
+                        {{ __('Delete contacts') }}
+                    </flux:button>
+                </div>
             </div>
-        </div>
-    </x-modal>
+        </x-modal>
 
-    <livewire:contacts.edit />
+        <livewire:contacts.form />
+    </div>
 </x-page>

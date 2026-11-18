@@ -122,7 +122,7 @@
                             <x-local-time :date="$log->created_at" format="d M Y H:i" />
                         </flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge size="sm" :color="$color">{{ $log->event->label() }}</flux:badge>
+                            <flux:badge size="sm" :color="$log->event->color()">{{ $log->event->label() }}</flux:badge>
                         </flux:table.cell>
                         <flux:table.cell>{{ $log->actor?->name ?? __('System') }}</flux:table.cell>
                         <flux:table.cell>{{ $log->subjectLabel() }}</flux:table.cell>

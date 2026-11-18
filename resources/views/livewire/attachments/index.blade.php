@@ -1,0 +1,80 @@
+<x-page :heading="__('Attachments')">
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <flux:input
+            type="search"
+            wire:model.live.debounce.300ms="search"
+            icon="magnifying-glass"
+            :placeholder="__('Search files...')"
+            :aria-label="__('Search attachments')"
+        />
+
+        <x-ui.select wire:model.live="projectId" :aria-label="__('Project')" :placeholder="__('All projects')" :empty="__('No projects found')" clearable>
+            @foreach ($projects as $project)
+                <x-ui.select.option value="{{ $project->id }}" icon="folder">{{ $project->title }}</x-ui.select.option>
+            @endforeach
+        </x-ui.select>
+
+        <x-ui.select wire:model.live="taskId" :aria-label="__('Task')" :placeholder="__('All tasks')" :empty="__('No tasks found')" clearable>
+            @foreach ($tasks as $task)
+                <x-ui.select.option value="{{ $task->id }}">{{ $task->title }}</x-ui.select.option>
+            @endforeach
+        </x-ui.select>
+
+        <x-ui.select wire:model.live="type" :aria-label="__('File type')" :placeholder="__('All types')" clearable>
+            <x-ui.select.option value="image">{{ __('Image') }}</x-ui.select.option>
+            <x-ui.select.option value="pdf">{{ __('PDF') }}</x-ui.select.option>
+            <x-ui.select.option value="document">{{ __('Document') }}</x-ui.select.option>
+        </x-ui.select>
+    </div>
+
+    <div class="overflow-x-auto">
+    <flux:table :paginate="$attachments">
+        <flux:table.columns>
+            <flux:table.column class="w-8/12">{{ __('Title') }}</flux:table.column>
+            <flux:table.column class="w-1/12" align="center">{{ __('Size') }}</flux:table.column>
+            <flux:table.column class="w-2/12">{{ __('Attached to') }}</flux:table.column>
+            <flux:table.column class="w-1/12">{{ __('Uploaded at') }}</flux:table.column>
+        </flux:table.columns>
+
+        <flux:table.rows>
+            @forelse ($attachments as $attachment)
+                <flux:table.row :key="$attachment->id">
+                    <flux:table.cell>
+                        <button type="button" wire:click="$dispatch('edit-attachment', { attachmentId: {{ $attachment->id }} })" class="flex items-center gap-2 text-start">
+                            <flux:icon
+                                :icon="$attachment->isImage() ? 'photo' : ($attachment->isPdf() ? 'document-text' : 'document')"
+                                class="size-5 text-zinc-500"
+                            />
+                            <span class="truncate">{{ $attachment->name }}</span>
+                        </button>
+                    </flux:table.cell>
+
+                    <flux:table.cell align="center">{{ $attachment->human_size }}</flux:table.cell>
+
+                    <flux:table.cell>
+                        @if ($attachment->attachable instanceof \App\Models\Project)
+                            <flux:link :href="route('projects.view', ['project' => $attachment->attachable->slug])" wire:navigate>
+                                {{ $attachment->attachable->title }}
+                            </flux:link>
+                        @elseif ($attachment->attachable instanceof \App\Models\Task)
+                            <flux:link :href="route('projects.view', ['project' => $attachment->attachable->project->slug]).'#task-'.$attachment->attachable->id" wire:navigate>
+                                {{ $attachment->attachable->title }}
+                            </flux:link>
+                        @endif
+                    </flux:table.cell>
+
+                    <flux:table.cell><x-local-time :date="$attachment->created_at" /></flux:table.cell>
+                </flux:table.row>
+            @empty
+                <flux:table.row>
+                    <flux:table.cell colspan="4">
+                        <flux:text>{{ $this->hasAttachments ? __('No attachments match your filters.') : __('No attachments yet.') }}</flux:text>
+                    </flux:table.cell>
+                </flux:table.row>
+            @endforelse
+        </flux:table.rows>
+    </flux:table>
+    </div>
+
+    <livewire:attachments.partials.edit />
+</x-page>

@@ -28,7 +28,28 @@ enum AuditEvent: string
     case ApprovalRequested = 'approval.requested';
     case ApprovalAccepted = 'approval.accepted';
     case ApprovalDeclined = 'approval.declined';
-    case ApprovalCancelled = 'approval.cancelled';
+    case ApprovalCanceled = 'approval.canceled';
+
+    case ProjectChanged = 'project.changed';
+    case ProjectKindChanged = 'project_kind.changed';
+    case ProjectCanceled = 'project.canceled';
+    case TaskChanged = 'task.changed';
+    case TaskCanceled = 'task.canceled';
+    case AttachmentChanged = 'attachment.changed';
+
+    /**
+     * Get the badge color for the event group.
+     */
+    public function color(): string
+    {
+        return match (true) {
+            str_starts_with($this->value, 'member.') => 'sky',
+            str_starts_with($this->value, 'contact.') => 'emerald',
+            str_starts_with($this->value, 'organization.') => 'amber',
+            str_starts_with($this->value, 'feature.') => 'violet',
+            default => 'indigo',
+        };
+    }
 
     public function label(): string
     {
@@ -48,7 +69,13 @@ enum AuditEvent: string
             self::ApprovalRequested => __('Approval requested'),
             self::ApprovalAccepted => __('Approval accepted'),
             self::ApprovalDeclined => __('Approval declined'),
-            self::ApprovalCancelled => __('Approval cancelled'),
+            self::ApprovalCanceled => __('Approval canceled'),
+            self::ProjectChanged => __('Project changed'),
+            self::ProjectKindChanged => __('Project kind changed'),
+            self::ProjectCanceled => __('Project canceled'),
+            self::TaskChanged => __('Task changed'),
+            self::TaskCanceled => __('Task canceled'),
+            self::AttachmentChanged => __('Attachment changed'),
         };
     }
 }

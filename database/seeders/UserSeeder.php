@@ -66,6 +66,7 @@ class UserSeeder extends Seeder
 
         if (app()->environment('local')) {
             $this->call(DemoSeeder::class, parameters: ['root' => $root]);
+            $this->call(ProjectSeeder::class, parameters: ['root' => $root]);
         }
 
         $this->seedPeriods();

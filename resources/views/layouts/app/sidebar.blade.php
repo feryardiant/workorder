@@ -33,6 +33,18 @@
                     <flux:sidebar.item icon="identification" :href="route('contacts.index')" :current="request()->routeIs('contacts.*')" wire:navigate>
                         {{ __('Contacts') }}
                     </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="folder" :href="route('projects.index')" :current="request()->routeIs('projects.*')" wire:navigate>
+                        {{ __('Projects') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="tag" :href="route('project-kinds.index')" :current="request()->routeIs('project-kinds.*')" wire:navigate>
+                        {{ __('Project Kinds') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="paper-clip" :href="route('attachments.index')" :current="request()->routeIs('attachments.*')" wire:navigate>
+                        {{ __('Attachments') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 

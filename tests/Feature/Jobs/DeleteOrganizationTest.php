@@ -21,16 +21,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Pennant\FeatureManager;
+use Tests\TestCase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    /** @var TestCase $this */
     $this->root = Organization::factory()->asRootTenant()->create(['name' => 'Root Org']);
 
     Notification::fake();
 });
 
 test('it deletes the subsidiary subtree and its data', function () {
+    /** @var TestCase $this */
     Storage::fake();
     Storage::disk()->put('logos/alpha.png', 'x');
     Storage::disk()->put('logos/beta.png', 'x');
@@ -84,6 +87,7 @@ test('it deletes the subsidiary subtree and its data', function () {
 });
 
 test('it tombstones an externally referenced organization', function () {
+    /** @var TestCase $this */
     Storage::fake();
     Storage::disk()->put('logos/customer.png', 'x');
 
@@ -142,6 +146,7 @@ test('it tombstones an externally referenced organization', function () {
 });
 
 test('it cancels pending approval requests when a subsidiary is tombstoned', function () {
+    /** @var TestCase $this */
     $owner = actingAsMember($this->root, Role::Owner);
 
     $subsidiary = Organization::factory()->asTenantOf($this->root)->create(['name' => 'Subsidiary']);
@@ -165,10 +170,11 @@ test('it cancels pending approval requests when a subsidiary is tombstoned', fun
 
     (new DeleteOrganization($subsidiary, $owner->getKey()))->handle(app(FileStorage::class));
 
-    expect($transfer->fresh()->status)->toBe(ApprovalRequestStatus::Cancelled);
+    expect($transfer->fresh()->status)->toBe(ApprovalRequestStatus::Canceled);
 });
 
 test('it refuses to delete a tenant outside the internal subsidiary tree', function () {
+    /** @var TestCase $this */
     $owner = actingAsMember($this->root, Role::Owner);
 
     $customer = Organization::factory()->asTenantOf($this->root)->create(['name' => 'Customer Org']);
@@ -185,6 +191,7 @@ test('it refuses to delete a tenant outside the internal subsidiary tree', funct
 });
 
 test('it refuses to delete when the actor is no longer a root owner', function () {
+    /** @var TestCase $this */
     $member = actingAsMember($this->root, Role::Member);
 
     $alpha = Organization::factory()->asTenantOf($this->root)->create(['name' => 'Alpha']);
@@ -196,6 +203,7 @@ test('it refuses to delete when the actor is no longer a root owner', function (
 });
 
 test('it refuses to delete the root tenant', function () {
+    /** @var TestCase $this */
     $owner = actingAsMember($this->root, Role::Owner);
 
     (new DeleteOrganization($this->root, $owner->getKey()))->handle(app(FileStorage::class));

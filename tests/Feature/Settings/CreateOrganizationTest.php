@@ -17,16 +17,19 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Livewire;
+use Tests\TestCase;
 
 use function Pest\Laravel\get;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    /** @var TestCase $this */
     $this->root = Organization::factory()->asRootTenant()->create(['name' => 'Root']);
 });
 
 test('a verified user creates a tenant they own', function () {
+    /** @var TestCase $this */
     $user = User::factory()->withProfile()->create();
 
     test()->actingAs($user);
@@ -55,6 +58,7 @@ test('a verified user creates a tenant they own', function () {
 });
 
 test('selecting an owned parent links the new organization as a subsidiary', function () {
+    /** @var TestCase $this */
     $parent = Organization::factory()->create();
 
     $user = actingAsMember($parent, Role::Owner);

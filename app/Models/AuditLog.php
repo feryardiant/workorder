@@ -43,6 +43,50 @@ class AuditLog extends Model
     public const UPDATED_AT = null;
 
     /**
+     * Build a human-readable description of the recorded change.
+     */
+    public function summary(): string
+    {
+        $title = (string) ($this->subject?->getAttribute('title') ?? $this->event->label());
+        $changes = $this->getAttribute('changes') ?? [];
+        $action = $changes['action'] ?? null;
+
+        return match ($this->event) {
+            AuditEvent::TaskChanged => match ($action) {
+                'started' => __(':task started', ['task' => $title]),
+                'finished' => __(':task finished', ['task' => $title]),
+                'reopened' => __(':task reopened', ['task' => $title]),
+                'updated' => __(':task information updated', ['task' => $title]),
+                'assigned_member' => __(':task reassigned from :from to :to', [
+                    'task' => $title,
+                    'from' => $changes['from'] ?? __('unassigned'),
+                    'to' => $changes['to'] ?? __('unassigned'),
+                ]),
+                'assigned_contact' => __(':task contact changed from :from to :to', [
+                    'task' => $title,
+                    'from' => $changes['from'] ?? __('unassigned'),
+                    'to' => $changes['to'] ?? __('unassigned'),
+                ]),
+                default => __(':task updated', ['task' => $title]),
+            },
+            AuditEvent::TaskCanceled => __(':task canceled', ['task' => $title]),
+            AuditEvent::ProjectChanged => match ($action) {
+                'created' => __('Project created'),
+                'finished' => __('Project finished'),
+                'archived' => __('Project archived'),
+                'updated' => __('Project information updated'),
+                default => __('Project updated'),
+            },
+            AuditEvent::ProjectCanceled => __('Project canceled'),
+            AuditEvent::ProjectKindChanged => __('Project kind :title updated', ['title' => $title]),
+            AuditEvent::AttachmentChanged => $action === 'removed'
+                ? trans_choice(':count attachment removed from :target|:count attachments removed from :target', (int) ($changes['count'] ?? 1), ['target' => $title])
+                : trans_choice(':count attachment added to :target|:count attachments added to :target', (int) ($changes['count'] ?? 1), ['target' => $title]),
+            default => $this->event->label(),
+        };
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

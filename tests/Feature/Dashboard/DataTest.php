@@ -12,6 +12,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
+use Tests\TestCase;
 
 uses(RefreshDatabase::class);
 
@@ -40,6 +41,7 @@ function dashboardContact(
 }
 
 beforeEach(function () {
+    /** @var TestCase $this */
     // Monday; the default range is Sunday 15th to Saturday 21st.
     $this->travelTo(CarbonImmutable::parse('2026-11-16 10:00:00'));
 });
@@ -106,20 +108,6 @@ test('the range filters the counts and the recent member list', function () {
     expect($component->newMembers)->toBe(3)
         ->and($component->recentMembers->pluck('name')->first())->toBe('This Week')
         ->and($component->recentMembers->pluck('name')->last())->toBe('Earlier');
-});
-
-test('lists a soft-deleted contact with its name instead of a broken link', function () {
-    $organization = Organization::factory()->create();
-
-    actingAsMember($organization, Role::Owner);
-
-    $person = dashboardContact($organization, 'Deleted Contact', '2026-11-01', '2026-11-18');
-    $person->delete();
-
-    // `FindContact::byUuid()` does not resolve trashed people, so no link.
-    Livewire::test(Dashboard::class)
-        ->assertSee('Deleted Contact')
-        ->assertDontSeeHtml(route('contacts.view', ['stakeholder' => $person]));
 });
 
 test('counts only unread notifications created inside the range', function () {

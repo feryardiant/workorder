@@ -47,7 +47,7 @@
                                     <flux:heading class="truncate">{{ $organization->name }}</flux:heading>
 
                                     @if ($kind !== null)
-                                        <flux:badge size="sm" color="zinc">{{ $kind->label() }}</flux:badge>
+                                        <flux:badge size="sm" :color="$kind->color()">{{ $kind->label() }}</flux:badge>
                                     @endif
                                 </div>
 
@@ -78,7 +78,9 @@
         @endif
     </x-org-settings.layout>
 
+        <div>
     <livewire:settings.organizations.create :internal="true" />
 
-    <livewire:org-settings.subsidiaries.remove-subsidiary />
+        <livewire:org-settings.subsidiaries.remove-subsidiary />
+    </div>
 </x-page>
