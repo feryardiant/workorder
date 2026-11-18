@@ -19,10 +19,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Throwable;
 
 /**
  * @property-read LengthAwarePaginator<int, Project> $projects
@@ -71,6 +73,19 @@ class Index extends Component
 
     public ?int $archivingId = null;
 
+    public bool $showBatchArchive = false;
+
+    /**
+     * @var array<int, int|string>
+     */
+    public array $selected = [];
+
+    public int $selectionKey = 0;
+
+    public bool $allSelected = false;
+
+    public bool $someSelected = false;
+
     /**
      * @return LengthAwarePaginator<int, Project>
      */
@@ -113,6 +128,12 @@ class Index extends Component
 
         return $organization !== null
             && Project::query()->where('owner_organization_id', $organization->getKey())->exists();
+    }
+
+    #[Computed]
+    public function canSelectAny(): bool
+    {
+        return $this->selectablePageIds() !== [];
     }
 
     /**
@@ -162,31 +183,61 @@ class Index extends Component
     public function updatedSearch(): void
     {
         $this->resetPage();
+        $this->clearSelection();
     }
 
     public function updatedKindId(): void
     {
         $this->resetPage();
+        $this->clearSelection();
     }
 
     public function updatedCustomerId(): void
     {
         $this->resetPage();
+        $this->clearSelection();
     }
 
     public function updatedStatus(): void
     {
         $this->resetPage();
+        $this->clearSelection();
     }
 
     public function updatedStartedRange(): void
     {
         $this->resetPage();
+        $this->clearSelection();
     }
 
     public function updatedFinishedRange(): void
     {
         $this->resetPage();
+        $this->clearSelection();
+    }
+
+    public function updatedPaginators(): void
+    {
+        $this->clearSelection();
+    }
+
+    public function updatedSelected(): void
+    {
+        $pageIds = $this->selectablePageIds();
+        $selected = array_map('intval', $this->selected);
+
+        $this->allSelected = $pageIds !== [] && array_diff($pageIds, $selected) === [];
+        $this->someSelected = ! $this->allSelected && array_intersect($pageIds, $selected) !== [];
+    }
+
+    public function toggleSelectAll(): void
+    {
+        $pageIds = $this->selectablePageIds();
+        $selected = array_map('intval', $this->selected);
+
+        $this->selected = array_diff($pageIds, $selected) === [] ? [] : $pageIds;
+        $this->selectionKey++;
+        $this->updatedSelected();
     }
 
     #[On('contact-updated')]
@@ -270,6 +321,63 @@ class Index extends Component
         Flux::toast(variant: 'success', text: __('Project archived.'));
     }
 
+    public function confirmArchiveSelected(): void
+    {
+        $this->showBatchArchive = true;
+    }
+
+    public function archiveSelected(): void
+    {
+        $organization = $this->requireOrganization();
+
+        $ids = array_values(array_intersect(array_map('intval', $this->selected), $this->selectablePageIds()));
+
+        if ($ids === []) {
+            $this->reset('showBatchArchive');
+            $this->clearSelection();
+
+            return;
+        }
+
+        $projects = Project::query()
+            ->where('owner_organization_id', $organization->getKey())
+            ->whereKey($ids)
+            ->get();
+
+        if ($projects->isEmpty()) {
+            $this->reset('showBatchArchive');
+            $this->clearSelection();
+
+            return;
+        }
+
+        try {
+            DB::transaction(function () use ($projects): void {
+                foreach ($projects as $project) {
+                    $project->delete();
+                }
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+
+            $this->reset('showBatchArchive');
+
+            Flux::toast(variant: 'danger', text: __('Failed to archive the selected projects.'));
+
+            return;
+        }
+
+        $this->reset('showBatchArchive');
+        $this->resetPage();
+        $this->clearSelection();
+        unset($this->projects, $this->canSelectAny);
+
+        Flux::toast(
+            variant: 'success',
+            text: __(':count projects archived successfully.', ['count' => $projects->count()]),
+        );
+    }
+
     public function render(): ViewContract
     {
         /** @disregard P1013 */
@@ -290,6 +398,26 @@ class Index extends Component
         return $this->isManager || $project->assignee_id === Auth::user()?->person?->getKey();
     }
 
+    /**
+     * @return array<int, int>
+     */
+    private function selectablePageIds(): array
+    {
+        return $this->projects
+            ->filter(fn (Project $project): bool => ! $project->trashed() && $this->canManageProject($project))
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+    }
+
+    private function clearSelection(): void
+    {
+        $this->selected = [];
+        $this->allSelected = false;
+        $this->someSelected = false;
+        $this->selectionKey++;
+    }
+
     private function todayDate(): string
     {
         $user = Auth::user();
@@ -306,6 +434,7 @@ class Index extends Component
     private function applyStatus(Builder $query): Builder
     {
         return match (ProjectStatus::tryFrom((string) $this->status)) {
+            ProjectStatus::Archived => $query->onlyTrashed(),
             ProjectStatus::Canceled => $query->whereNotNull('canceled_date'),
             ProjectStatus::Finished => $query->whereNull('canceled_date')->whereNotNull('finished_date'),
             ProjectStatus::NotStarted => $query->whereNull('canceled_date')->whereNull('started_date'),

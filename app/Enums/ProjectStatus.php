@@ -9,11 +9,17 @@ namespace App\Enums;
  */
 enum ProjectStatus: string
 {
+    case Archived = 'archived';
     case NotStarted = 'not_started';
     case Scheduled = 'scheduled';
     case OnGoing = 'on_going';
     case Finished = 'finished';
     case Canceled = 'canceled';
+
+    public function isArchived(): bool
+    {
+        return $this === self::Archived;
+    }
 
     public function isCompleted(): bool
     {
@@ -51,7 +57,7 @@ enum ProjectStatus: string
     public function color(): string
     {
         return match ($this) {
-            self::NotStarted => 'zinc',
+            self::NotStarted, self::Archived => 'zinc',
             self::Scheduled => 'amber',
             self::OnGoing => 'sky',
             self::Finished => 'green',
@@ -65,6 +71,7 @@ enum ProjectStatus: string
     public function label(): string
     {
         return match ($this) {
+            self::Archived => __('Archived'),
             self::NotStarted => __('Not started'),
             self::Scheduled => __('Scheduled'),
             self::OnGoing => __('On going'),

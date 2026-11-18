@@ -556,6 +556,7 @@
     "All tasks": "Semua tugas",
     "All types": "Semua tipe",
     "Apply": "Terapkan",
+    "Archived": "Diarsipkan",
     "Archive project": "Arsipkan proyek",
     "Assign contact": "Tetapkan kontak",
     "Assign member": "Tetapkan anggota",
@@ -711,5 +712,11 @@
     "This task cannot be canceled.": "Tugas ini tidak dapat dibatalkan.",
     "Title": "Judul",
     "Unassigned": "Belum ditetapkan",
-    "Members can only create projects assigned to themselves.": "Anggota hanya dapat membuat proyek untuk dirinya sendiri."
+    "Members can only create projects assigned to themselves.": "Anggota hanya dapat membuat proyek untuk dirinya sendiri.",
+    "Archive projects": "Arsipkan proyek",
+    "Archive selected projects": "Arsipkan proyek terpilih",
+    "Select all projects": "Pilih semua proyek",
+    ":count projects archived successfully.": ":count proyek berhasil diarsipkan.",
+    ":count selected projects will be archived.": ":count proyek terpilih akan diarsipkan.",
+    "Failed to archive the selected projects.": "Gagal mengarsipkan proyek terpilih."
 }

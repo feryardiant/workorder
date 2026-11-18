@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 /**
@@ -174,9 +175,10 @@ class Project extends Model
     protected function status(): Attribute
     {
         return Attribute::make(get: function (): ProjectStatus {
-            $today = CarbonImmutable::now((string) data_get(auth()->user(), 'timezone', 'UTC'))->toDateString();
+            $today = CarbonImmutable::now((string) data_get(Auth::user(), 'timezone', 'UTC'))->toDateString();
 
             return match (true) {
+                $this->trashed() => ProjectStatus::Archived,
                 $this->canceled_date !== null => ProjectStatus::Canceled,
                 $this->finished_date !== null => ProjectStatus::Finished,
                 $this->started_date === null => ProjectStatus::NotStarted,
