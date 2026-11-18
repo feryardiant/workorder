@@ -40,6 +40,19 @@ enum TaskStatus: string
     }
 
     /**
+     * Get the badge color for the status.
+     */
+    public function color(): string
+    {
+        return match ($this) {
+            self::NotStarted => 'zinc',
+            self::OnGoing => 'sky',
+            self::Finished => 'green',
+            self::Canceled => 'red',
+        };
+    }
+
+    /**
      * Get the human-readable label for the status.
      */
     public function label(): string

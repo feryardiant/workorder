@@ -50,7 +50,7 @@
                                 <flux:heading size="sm">{{ $task->title }}</flux:heading>
 
                                 @if ($task->status->isCanceled())
-                                    <flux:badge size="sm" color="red">{{ __('Canceled') }}</flux:badge>
+                                    <flux:badge size="sm" :color="$task->status->color()">{{ __('Canceled') }}</flux:badge>
                                 @elseif ($disabled)
                                     <flux:badge size="sm" color="zinc">{{ __('Disabled') }}</flux:badge>
                                 @endif
@@ -216,7 +216,7 @@
                         @if ($assignees->isNotEmpty())
                             <flux:avatar.group>
                                 @foreach ($assignees as $person)
-                                    <flux:avatar size="sm" :src="$person->photo_url" :name="$person->name" :initials="$person->initials()" />
+                                    <flux:avatar tooltip size="sm" :src="$person->photo_url" :name="$person->name" :initials="$person->initials()" />
                                 @endforeach
                             </flux:avatar.group>
                         @endif

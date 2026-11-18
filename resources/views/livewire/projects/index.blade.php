@@ -92,7 +92,7 @@
 
                     <flux:table.cell class="w-1/12" align="center">
                         <div class="flex flex-col items-center gap-1">
-                            <flux:badge size="sm">{{ $project->status->label() }}</flux:badge>
+                            <flux:badge size="sm" :color="$project->status->color()">{{ $project->status->label() }}</flux:badge>
                             @if ($project->status->isOnGoing())
                                 <flux:text class="text-xs">{{ __(':finished/:total tasks', ['finished' => $project->finished_tasks_count, 'total' => $project->total_tasks_count]) }}</flux:text>
                             @endif

@@ -37,6 +37,20 @@ enum AuditEvent: string
     case TaskCanceled = 'task.canceled';
     case AttachmentChanged = 'attachment.changed';
 
+    /**
+     * Get the badge color for the event group.
+     */
+    public function color(): string
+    {
+        return match (true) {
+            str_starts_with($this->value, 'member.') => 'sky',
+            str_starts_with($this->value, 'contact.') => 'emerald',
+            str_starts_with($this->value, 'organization.') => 'amber',
+            str_starts_with($this->value, 'feature.') => 'violet',
+            default => 'indigo',
+        };
+    }
+
     public function label(): string
     {
         return match ($this) {

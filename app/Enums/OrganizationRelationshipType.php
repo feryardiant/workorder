@@ -73,6 +73,19 @@ enum OrganizationRelationshipType: string
     }
 
     /**
+     * Get the badge color for the relationship type.
+     */
+    public function color(): string
+    {
+        return match ($this) {
+            self::Subsidiary, self::Member => 'zinc',
+            self::Customer => 'sky',
+            self::Supplier => 'emerald',
+            self::Vendor => 'amber',
+        };
+    }
+
+    /**
      * Get the human-readable label for the relationship type.
      */
     public function label(): string
