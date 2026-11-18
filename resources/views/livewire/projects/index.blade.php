@@ -9,7 +9,7 @@
         </flux:button>
     </x-slot:actions>
 
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-6">
         <flux:input
             type="search"
             wire:model.live.debounce.300ms="search"
@@ -53,7 +53,7 @@
         <flux:table.rows>
             @forelse ($projects as $project)
                 <flux:table.row :key="$project->id">
-                    <flux:table.cell class="w-6/12">
+                    <flux:table.cell class="w-8/12">
                         <div class="flex flex-col gap-1 w-full">
                             <div class="flex flex-wrap items-center gap-2">
                                 <flux:link :href="route('projects.view', ['project' => $project->slug])" wire:navigate>
@@ -72,14 +72,14 @@
                         </div>
                     </flux:table.cell>
 
-                    <flux:table.cell class="w-2/12">
+                    <flux:table.cell class="w-1/12">
                         <div class="flex items-center gap-2">
                             <flux:avatar size="xs" :src="$project->customer?->logo_url" :name="$project->customer?->name" />
                             <span class="truncate">{{ $project->customer?->name }}</span>
                         </div>
                     </flux:table.cell>
 
-                    <flux:table.cell class="w-2/12">
+                    <flux:table.cell class="w-1/12">
                         @if ($project->assignee !== null)
                             <div class="flex items-center gap-2">
                                 <flux:avatar size="xs" :src="$project->assignee->photo_url" :name="$project->assignee->name" />
