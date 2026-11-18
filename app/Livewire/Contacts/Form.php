@@ -7,6 +7,7 @@ namespace App\Livewire\Contacts;
 use App\Actions\Contacts\CreateContact;
 use App\Actions\Contacts\FindContact;
 use App\Actions\Contacts\UpdateContact;
+use App\Concerns\ManagesContactDetails;
 use App\Concerns\ProfileValidationRules;
 use App\Enums\ContactDetailType;
 use App\Enums\Gender;
@@ -40,7 +41,7 @@ use Throwable;
  */
 class Form extends Component
 {
-    use HasCurrentOrganization, ManagesAddress, ProfileValidationRules, WithFileUploads;
+    use HasCurrentOrganization, ManagesAddress, ManagesContactDetails, ProfileValidationRules, WithFileUploads;
 
     public bool $showModal = false;
 
@@ -97,6 +98,18 @@ class Form extends Component
     public string $contact_person_phone = '';
 
     #[Locked]
+    public string $original_contact_email = '';
+
+    #[Locked]
+    public string $original_contact_phone = '';
+
+    #[Locked]
+    public string $original_contact_person_email = '';
+
+    #[Locked]
+    public string $original_contact_person_phone = '';
+
+    #[Locked]
     public bool $genderEnabled = false;
 
     #[On('create-contact')]
@@ -130,6 +143,10 @@ class Form extends Component
             'contact_phone',
             'contact_person_email',
             'contact_person_phone',
+            'original_contact_email',
+            'original_contact_phone',
+            'original_contact_person_email',
+            'original_contact_person_phone',
         );
 
         $this->type = 'individual';
@@ -160,6 +177,11 @@ class Form extends Component
 
     public function updatedSelectedEntity(?string $reference): void
     {
+        // Reuse only applies while creating; an edited contact keeps its own values.
+        if ($this->contactId !== null) {
+            return;
+        }
+
         if ($reference === null || $reference === '') {
             if ($this->reusedName !== null || $this->reusedType !== null) {
                 $this->resetReuse();
@@ -260,10 +282,18 @@ class Form extends Component
             'finish_date' => $this->finish_date !== '' ? $this->finish_date : null,
             'contact_name' => $this->contact_name !== '' ? $this->contact_name : null,
             'contact_summary' => $this->contact_summary !== '' ? $this->contact_summary : null,
-            'contact_email' => $this->contact_email,
-            'contact_phone' => $this->contact_phone,
-            'contact_person_email' => $this->contact_person_email,
-            'contact_person_phone' => $this->contact_person_phone,
+            'contact_details' => $this->contactDetailChanges(
+                $this->contact_email,
+                $this->contact_phone,
+                $this->original_contact_email,
+                $this->original_contact_phone,
+            ),
+            'contact_person_details' => $this->contactDetailChanges(
+                $this->contact_person_email,
+                $this->contact_person_phone,
+                $this->original_contact_person_email,
+                $this->original_contact_person_phone,
+            ),
             'address' => $this->addressPayload(),
         ];
 
@@ -331,7 +361,9 @@ class Form extends Component
     #[Computed]
     public function reusing(): bool
     {
-        return \is_string($this->selectedEntity) && $this->selectedEntity !== '';
+        return $this->contactId === null
+            && \is_string($this->selectedEntity)
+            && $this->selectedEntity !== '';
     }
 
     #[Computed]
@@ -452,6 +484,8 @@ class Form extends Component
         $this->photo_url = $stakeholder->getRawOriginal($stakeholder instanceof Organization ? 'logo_url' : 'photo_url');
         $this->contact_email = (string) $stakeholder->contactDetailValue(ContactDetailType::Email);
         $this->contact_phone = (string) $stakeholder->contactDetailValue(ContactDetailType::Phone);
+        $this->original_contact_email = $this->contact_email;
+        $this->original_contact_phone = $this->contact_phone;
         $this->selectedEntity = null;
         $this->reusedType = null;
         $this->reusedName = null;
@@ -472,6 +506,8 @@ class Form extends Component
             $this->contact_summary = (string) $contactPerson?->summary;
             $this->contact_person_email = (string) $contactPerson?->contactDetailValue(ContactDetailType::Email);
             $this->contact_person_phone = (string) $contactPerson?->contactDetailValue(ContactDetailType::Phone);
+            $this->original_contact_person_email = $this->contact_person_email;
+            $this->original_contact_person_phone = $this->contact_person_phone;
         }
 
         $this->resetValidation();
@@ -494,6 +530,10 @@ class Form extends Component
         $this->contact_phone = '';
         $this->contact_person_email = '';
         $this->contact_person_phone = '';
+        $this->original_contact_email = '';
+        $this->original_contact_phone = '';
+        $this->original_contact_person_email = '';
+        $this->original_contact_person_phone = '';
         $this->type = 'individual';
         $this->resetAddress();
 

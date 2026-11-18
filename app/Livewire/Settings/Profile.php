@@ -6,6 +6,7 @@ namespace App\Livewire\Settings;
 
 use App\Actions\Contacts\SaveContactDetails;
 use App\Actions\FileStorage;
+use App\Concerns\ManagesContactDetails;
 use App\Concerns\ProfileValidationRules;
 use App\Enums\ContactDetailType;
 use App\Enums\Gender;
@@ -35,7 +36,7 @@ use Livewire\WithFileUploads;
  */
 class Profile extends Component
 {
-    use HasCurrentOrganization, ProfileValidationRules, WithFileUploads;
+    use HasCurrentOrganization, ManagesContactDetails, ProfileValidationRules, WithFileUploads;
 
     public string $name = '';
 
@@ -48,6 +49,12 @@ class Profile extends Component
     public string $contact_email = '';
 
     public string $contact_phone = '';
+
+    #[Locked]
+    public string $original_contact_email = '';
+
+    #[Locked]
+    public string $original_contact_phone = '';
 
     public ?string $gender = null;
 
@@ -71,6 +78,8 @@ class Profile extends Component
         $this->summary = (string) $person?->summary;
         $this->contact_email = (string) $person?->contactDetailValue(ContactDetailType::Email);
         $this->contact_phone = (string) $person?->contactDetailValue(ContactDetailType::Phone);
+        $this->original_contact_email = $this->contact_email;
+        $this->original_contact_phone = $this->contact_phone;
         $this->gender = $person?->gender?->value;
         $this->avatar_url = $person?->getRawOriginal('photo_url');
     }
@@ -142,8 +151,12 @@ class Profile extends Component
 
             $saveContactDetails->handle(
                 $person,
-                $validated['contact_email'] ?? null,
-                $validated['contact_phone'] ?? null,
+                $this->contactDetailChanges(
+                    $this->contact_email,
+                    $this->contact_phone,
+                    $this->original_contact_email,
+                    $this->original_contact_phone,
+                ),
             );
 
             $attributes = [

@@ -73,6 +73,24 @@ it('updates the organization contact details', function () {
         ->and($organization->fresh()->contactDetailValue(ContactDetailType::Phone))->toBe('0812 3456');
 });
 
+it('an unrelated organization save does not revert a newer contact email', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $stale = Livewire::test(General::class);
+
+    Livewire::test(General::class)
+        ->set('contact_email', 'new@acme.test')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    $stale->set('summary', 'Updated summary')->call('update')->assertHasNoErrors();
+
+    expect($organization->fresh()->contactDetailValue(ContactDetailType::Email))->toBe('new@acme.test')
+        ->and($organization->fresh()->summary)->toBe('Updated summary');
+});
+
 it('requires a name', function () {
     $organization = Organization::factory()->create(['name' => 'Old Name']);
 

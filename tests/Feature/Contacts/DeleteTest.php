@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\Contacts\CreateContact;
 use App\Actions\Contacts\DeleteContact;
+use App\Actions\Contacts\SaveContactDetails;
 use App\Enums\ContactDetailType;
 use App\Enums\OrganizationRelationshipType;
 use App\Enums\Role;
@@ -346,4 +347,18 @@ test('a rejected person force delete keeps its contact details', function () {
         ->where('contactable_type', Person::class)
         ->where('contactable_id', $person->getKey())
         ->exists())->toBeTrue();
+});
+
+test('saving contact details for a deleted entity is rejected', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Admin);
+
+    $person = contactIndividual($organization, ['name' => 'Deleted Target']);
+    $person->forceDelete();
+
+    expect(fn () => app(SaveContactDetails::class)->handle($person, ['email' => 'orphan@acme.test']))
+        ->toThrow(ModelNotFoundException::class);
+
+    expect(ContactDetail::query()->count())->toBe(0);
 });

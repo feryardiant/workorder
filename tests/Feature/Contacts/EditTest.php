@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Contacts\SaveContactDetails;
 use App\Actions\Contacts\UpdateContact;
 use App\Enums\AuditEvent;
 use App\Enums\ContactDetailType;
@@ -571,4 +572,63 @@ test('contact detail audit records field names without values', function () {
     expect($log->changes)->toBe(['fields' => ['email', 'phone']])
         ->and($encoded)->not->toContain('new@acme.test')
         ->and($encoded)->not->toContain('0812 777');
+});
+
+test('saving one contact detail leaves the other untouched', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Admin);
+
+    $contact = contactIndividual($organization, ['name' => 'Partial Save']);
+    $contact->contactDetails()->create(['type' => ContactDetailType::Phone, 'value' => '0812 555']);
+
+    app(SaveContactDetails::class)->handle($contact, ['email' => 'partial@acme.test']);
+
+    expect($contact->fresh()?->contactDetailValue(ContactDetailType::Email))->toBe('partial@acme.test')
+        ->and($contact->fresh()?->contactDetailValue(ContactDetailType::Phone))->toBe('0812 555');
+});
+
+test('an unrelated save does not revert a newer contact email', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Admin);
+
+    $contact = contactIndividual($organization, ['name' => 'Stale Guard']);
+    $relationshipId = contactRelationshipId($organization, $contact);
+
+    $stale = Livewire::test(Form::class)->call('openEdit', $relationshipId);
+
+    Livewire::test(Form::class)
+        ->call('openEdit', $relationshipId)
+        ->set('contact_email', 'new@acme.test')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $stale->set('code', 'STALE-1')->call('save')->assertHasNoErrors();
+
+    expect($contact->fresh()?->contactDetailValue(ContactDetailType::Email))->toBe('new@acme.test')
+        ->and(OrganizationRelationship::query()->findOrFail($relationshipId)->code)->toBe('STALE-1');
+});
+
+test('a stale reuse reference cannot skip contact detail validation on edit', function () {
+    $owner = Organization::factory()->create();
+    $other = Organization::factory()->create();
+
+    $contact = contactOrganization($owner, ['name' => 'Reuse Guard']);
+
+    // An expired relationship keeps the contact reusable, so the reference resolves.
+    $other->organizationCounterparties()->attach($contact, [
+        'type' => OrganizationRelationshipType::Customer,
+        'start_date' => now()->subMonths(2),
+        'finish_date' => now()->subMonth(),
+    ]);
+
+    actingAsMember($other, Role::Admin);
+
+    Livewire::test(Form::class)
+        ->call('openEdit', contactRelationshipId($other, $contact))
+        ->set('selectedEntity', 'organization:'.$contact->uuid)
+        ->set('contact_email', 'not-an-email')
+        ->call('save')
+        ->assertHasErrors('contact_email');
 });

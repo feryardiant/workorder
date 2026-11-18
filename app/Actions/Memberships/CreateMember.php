@@ -38,6 +38,7 @@ final class CreateMember
      * Create a person, optional credential, and organization membership.
      *
      * @param  array<string, mixed>|null  $address
+     * @param  array<string, string|null>  $contactDetails
      */
     public function handle(
         Organization $organization,
@@ -47,8 +48,7 @@ final class CreateMember
         ?string $photoUrl = null,
         ?User $actor = null,
         ?array $address = null,
-        ?string $contactEmail = null,
-        ?string $contactPhone = null,
+        array $contactDetails = [],
     ): Person {
         if ($role->isOwner()) {
             throw new InvalidArgumentException('Owner is assigned by transferring ownership.');
@@ -56,13 +56,13 @@ final class CreateMember
 
         $user = null;
 
-        $person = DB::transaction(function () use ($organization, $name, $role, $email, $photoUrl, $actor, $address, $contactEmail, $contactPhone, &$user): Person {
+        $person = DB::transaction(function () use ($organization, $name, $role, $email, $photoUrl, $actor, $address, $contactDetails, &$user): Person {
             $person = $this->createIndividual($name, email: $email, photoPath: $photoUrl, owner: $organization);
             $user = $person->user;
 
             $this->saveAddress->handle($person, $address);
 
-            $this->saveContactDetails->handle($person, $contactEmail, $contactPhone);
+            $this->saveContactDetails->handle($person, $contactDetails);
 
             $this->attach(
                 $organization,

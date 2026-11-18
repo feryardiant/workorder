@@ -128,17 +128,12 @@ final class CreateContact
 
                 // Contact records only; never pass these to createIndividual(),
                 // whose $email argument creates a login user.
-                $this->saveContactDetails->handle(
-                    $stakeholder,
-                    $data['contact_email'] ?? null,
-                    $data['contact_phone'] ?? null,
-                );
+                $this->saveContactDetails->handle($stakeholder, $data['contact_details'] ?? []);
 
                 if ($stakeholder instanceof Organization && $stakeholder->primaryContact !== null) {
                     $this->saveContactDetails->handle(
                         $stakeholder->primaryContact,
-                        $data['contact_person_email'] ?? null,
-                        $data['contact_person_phone'] ?? null,
+                        $data['contact_person_details'] ?? [],
                     );
                 }
 

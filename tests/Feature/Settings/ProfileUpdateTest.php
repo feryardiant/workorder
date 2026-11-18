@@ -84,6 +84,22 @@ test('contact details are stored without changing the login email', function () 
         ->and($user->fresh()?->email)->toBe('login@example.test');
 });
 
+test('an unrelated profile save does not revert a newer contact email', function () {
+    actingAs($user = User::factory()->create());
+
+    $stale = Livewire::test(Profile::class);
+
+    Livewire::test(Profile::class)
+        ->set('contact_email', 'new@acme.test')
+        ->call('updateProfileInformation')
+        ->assertHasNoErrors();
+
+    $stale->set('handle', 'renamed1')->call('updateProfileInformation')->assertHasNoErrors();
+
+    expect($user->fresh()?->person?->contactDetailValue(ContactDetailType::Email))->toBe('new@acme.test')
+        ->and($user->fresh()?->handle)->toBe('renamed1');
+});
+
 test('an org-owned profile is locked until the workspace enables self-edit', function () {
     $organization = Organization::factory()->create();
     $user = User::factory()->withProfile()->create();

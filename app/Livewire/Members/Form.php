@@ -10,6 +10,7 @@ use App\Actions\FileStorage;
 use App\Actions\Memberships\ChangeMemberRole;
 use App\Actions\Memberships\CreateMember;
 use App\Actions\Users\CreateUser;
+use App\Concerns\ManagesContactDetails;
 use App\Concerns\ProfileValidationRules;
 use App\Enums\ContactDetailType;
 use App\Enums\Gender;
@@ -39,7 +40,7 @@ use Livewire\WithFileUploads;
  */
 class Form extends Component
 {
-    use HasCurrentOrganization, ManagesAddress, ProfileValidationRules, WithFileUploads;
+    use HasCurrentOrganization, ManagesAddress, ManagesContactDetails, ProfileValidationRules, WithFileUploads;
 
     public ?Person $person = null;
 
@@ -52,6 +53,12 @@ class Form extends Component
     public string $contact_email = '';
 
     public string $contact_phone = '';
+
+    #[Locked]
+    public string $original_contact_email = '';
+
+    #[Locked]
+    public string $original_contact_phone = '';
 
     #[Locked]
     public bool $hasCredential = false;
@@ -108,7 +115,7 @@ class Form extends Component
     {
         $this->authorizeManager();
 
-        $this->reset('person', 'name', 'email', 'contact_email', 'contact_phone', 'hasCredential', 'createCredential', 'gender', 'photo', 'photo_url');
+        $this->reset('person', 'name', 'email', 'contact_email', 'contact_phone', 'original_contact_email', 'original_contact_phone', 'hasCredential', 'createCredential', 'gender', 'photo', 'photo_url');
 
         $this->role = Role::Member->value;
         $this->genderEnabled = false;
@@ -159,8 +166,12 @@ class Form extends Component
             $photoUrl,
             Auth::user(),
             $this->addressPayload(),
-            $validated['contact_email'] ?? null,
-            $validated['contact_phone'] ?? null,
+            $this->contactDetailChanges(
+                $this->contact_email,
+                $this->contact_phone,
+                $this->original_contact_email,
+                $this->original_contact_phone,
+            ),
         );
 
         $this->photo = null;
@@ -308,8 +319,12 @@ class Form extends Component
             // Communication records stay editable even when the profile is managed elsewhere.
             $saveContactDetails->handle(
                 $this->person,
-                $validated['contact_email'] ?? null,
-                $validated['contact_phone'] ?? null,
+                $this->contactDetailChanges(
+                    $this->contact_email,
+                    $this->contact_phone,
+                    $this->original_contact_email,
+                    $this->original_contact_phone,
+                ),
             );
 
             if ($canEditProfile && $this->hasCredential) {
@@ -412,6 +427,8 @@ class Form extends Component
         $this->email = $person->user_id === null ? '' : $person->user->email;
         $this->contact_email = (string) $person->contactDetailValue(ContactDetailType::Email);
         $this->contact_phone = (string) $person->contactDetailValue(ContactDetailType::Phone);
+        $this->original_contact_email = $this->contact_email;
+        $this->original_contact_phone = $this->contact_phone;
         $this->gender = $person->gender?->value;
         $this->role = ($person->roleIn($this->requireOrganization()) ?? Role::Member)->value;
         $this->fillAddress($person->addresses()->first());

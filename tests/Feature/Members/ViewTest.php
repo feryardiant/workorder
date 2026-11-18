@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Actions\Memberships\RemoveMember;
 use App\Enums\ContactDetailType;
 use App\Enums\Gender;
 use App\Enums\Role;
 use App\Livewire\Members\View;
+use App\Livewire\Members\View as MemberView;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\User;
@@ -27,6 +29,20 @@ test('a member can be viewed by uuid', function () {
     get(route('members.show', $member->person))
         ->assertOk()
         ->assertSee('Viewable Member');
+});
+
+test('the member page stops rendering once the membership is removed', function () {
+    $organization = Organization::factory()->create();
+
+    $actor = actingAsMember($organization, Role::Owner);
+
+    $person = User::factory()->asMemberOf($organization)->create()->person;
+
+    $component = Livewire::test(MemberView::class, ['person' => $person]);
+
+    app(RemoveMember::class)->handle($organization, $person, $actor);
+
+    $component->call('confirmPromote')->assertStatus(404);
 });
 
 test('the member view displays contact details', function () {

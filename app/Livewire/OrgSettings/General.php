@@ -7,6 +7,7 @@ namespace App\Livewire\OrgSettings;
 use App\Actions\Addresses\SaveAddress;
 use App\Actions\Contacts\SaveContactDetails;
 use App\Actions\FileStorage;
+use App\Concerns\ManagesContactDetails;
 use App\Concerns\ProfileValidationRules;
 use App\Enums\ContactDetailType;
 use App\Events\Organizations\OrganizationUpdated;
@@ -27,7 +28,7 @@ use Throwable;
 
 class General extends Component
 {
-    use HasCurrentOrganization, ManagesAddress, ProfileValidationRules, WithFileUploads;
+    use HasCurrentOrganization, ManagesAddress, ManagesContactDetails, ProfileValidationRules, WithFileUploads;
 
     public string $name = '';
 
@@ -36,6 +37,12 @@ class General extends Component
     public string $contact_email = '';
 
     public string $contact_phone = '';
+
+    #[Locked]
+    public string $original_contact_email = '';
+
+    #[Locked]
+    public string $original_contact_phone = '';
 
     /**
      * @var mixed
@@ -60,6 +67,8 @@ class General extends Component
         $this->summary = (string) $organization->summary;
         $this->contact_email = (string) $organization->contactDetailValue(ContactDetailType::Email);
         $this->contact_phone = (string) $organization->contactDetailValue(ContactDetailType::Phone);
+        $this->original_contact_email = $this->contact_email;
+        $this->original_contact_phone = $this->contact_phone;
         $this->logo_url = $organization->getRawOriginal('logo_url');
         $this->fillAddress($organization->address()->first());
     }
@@ -121,8 +130,12 @@ class General extends Component
 
                 $details = $saveContactDetails->handle(
                     $organization,
-                    $validated['contact_email'] ?? null,
-                    $validated['contact_phone'] ?? null,
+                    $this->contactDetailChanges(
+                        $this->contact_email,
+                        $this->contact_phone,
+                        $this->original_contact_email,
+                        $this->original_contact_phone,
+                    ),
                 );
 
                 $fields = [

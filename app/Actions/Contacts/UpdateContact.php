@@ -209,27 +209,18 @@ final class UpdateContact
      */
     private function saveContactDetailsFor(Organization|Person $stakeholder, array $data): array
     {
-        $fields = [];
-
-        if (\array_key_exists('contact_email', $data)) {
-            $fields = $this->saveContactDetails->handle(
-                $stakeholder,
-                $data['contact_email'],
-                $data['contact_phone'] ?? null,
-            );
-        }
+        $fields = $this->saveContactDetails->handle($stakeholder, $data['contact_details'] ?? []);
 
         $contactPerson = $stakeholder instanceof Organization ? $stakeholder->primaryContact : null;
 
-        if ($contactPerson !== null && \array_key_exists('contact_person_email', $data)) {
+        if ($contactPerson !== null) {
             $fields = [
                 ...$fields,
                 ...array_map(
                     fn (string $field): string => 'contact_'.$field,
                     $this->saveContactDetails->handle(
                         $contactPerson,
-                        $data['contact_person_email'],
-                        $data['contact_person_phone'] ?? null,
+                        $data['contact_person_details'] ?? [],
                     ),
                 ),
             ];

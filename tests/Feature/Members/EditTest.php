@@ -313,3 +313,42 @@ test('a photo picked for a new member does not follow into an edit', function ()
 
     expect($member->person->fresh()->getRawOriginal('photo_url'))->toBe('photos/original.jpg');
 });
+
+test('an unrelated member save does not revert a newer contact email', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $member = User::factory()->asMemberOf($organization, Role::Member)->create();
+
+    $stale = Livewire::test(Form::class, ['person' => $member->person]);
+
+    Livewire::test(Form::class, ['person' => $member->person])
+        ->set('contact_email', 'new@acme.test')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    $stale->set('role', Role::Admin->value)->call('update')->assertHasNoErrors();
+
+    expect($member->person->fresh()?->contactDetailValue(ContactDetailType::Email))->toBe('new@acme.test')
+        ->and($member->person->fresh()?->roleIn($organization))->toBe(Role::Admin);
+});
+
+test('clearing member contact details deletes them', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $member = User::factory()->asMemberOf($organization)->create();
+    $member->person->contactDetails()->create([
+        'type' => ContactDetailType::Email,
+        'value' => 'clear@acme.test',
+    ]);
+
+    Livewire::test(Form::class, ['person' => $member->person])
+        ->set('contact_email', '')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    expect($member->person->fresh()?->contactDetailValue(ContactDetailType::Email))->toBeNull();
+});
