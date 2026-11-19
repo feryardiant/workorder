@@ -6,43 +6,29 @@ namespace App\Actions\Contacts;
 
 use App\Enums\ContactDetailType;
 use App\Models\Entity;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 
 final class SaveContactDetails
 {
     /**
-     * Apply the submitted contact detail changes.
+     * Store the changed detail records, leaving omitted types untouched.
      *
-     * Present keys are intent: a value upserts the record and an empty value
-     * deletes it. Absent keys are untouched, so a stale form cannot revert a
-     * value it never edited.
-     *
-     * @param  array<string, string|null>  $details
+     * @param  array<string, ?string>  $details  Detail type => value; null or blank deletes.
      * @return list<string> The detail types that changed.
      */
     public function handle(Entity $entity, array $details): array
     {
-        $details = array_intersect_key($details, array_flip(array_map(
-            static fn (ContactDetailType $type): string => $type->value,
-            ContactDetailType::cases(),
-        )));
-
         if ($details === []) {
             return [];
         }
 
-        // Serialize concurrent first saves, clears, and entity deletion.
-        $entity = $this->lock($entity);
+        // Serialize with a concurrent save so a first insert cannot race the unique index.
+        $entity->newQuery()->withTrashed()->whereKey($entity->getKey())->lockForUpdate()->firstOrFail();
 
         $changed = [];
 
-        foreach (ContactDetailType::cases() as $type) {
-            if (! \array_key_exists($type->value, $details)) {
-                continue;
-            }
-
-            $field = $this->save($entity, $type, $details[$type->value]);
+        foreach ($details as $type => $value) {
+            $field = $this->save($entity, ContactDetailType::from($type), $value);
 
             if ($field !== null) {
                 $changed[] = $field;
@@ -50,23 +36,6 @@ final class SaveContactDetails
         }
 
         return $changed;
-    }
-
-    /**
-     * Re-read the owning entity under a row lock.
-     */
-    private function lock(Entity $entity): Entity
-    {
-        $locked = $entity->newQuery()
-            ->whereKey($entity->getKey())
-            ->lockForUpdate()
-            ->first();
-
-        if ($locked === null) {
-            throw (new ModelNotFoundException)->setModel($entity::class, [$entity->getKey()]);
-        }
-
-        return $locked;
     }
 
     /**
@@ -78,7 +47,9 @@ final class SaveContactDetails
         $existing = $entity->contactDetails()->where('type', $type->value)->first();
 
         if ($value === null) {
-            return $existing?->delete() === true ? $type->value : null;
+            $existing?->delete();
+
+            return $existing !== null ? $type->value : null;
         }
 
         if ($existing !== null) {
@@ -86,11 +57,9 @@ final class SaveContactDetails
                 return null;
             }
 
-            $updated = $existing->newQuery()
-                ->whereKey($existing->getKey())
-                ->update(['value' => $value]);
+            $existing->update(['value' => $value]);
 
-            return $updated > 0 ? $type->value : null;
+            return $type->value;
         }
 
         $entity->contactDetails()->create(['type' => $type, 'value' => $value]);
