@@ -263,7 +263,9 @@ it('rejects state changes on finished and canceled records', function (): void {
 
 it('starts the project on the local date of the user', function (): void {
     /** @var TestCase $this */
-    $this->travelTo(CarbonImmutable::parse('2026-11-18 23:30:00'));
+    // Travel forward so the membership created in beforeEach starts before the frozen time.
+    $frozen = CarbonImmutable::now()->addDay()->setTime(23, 30);
+    $this->travelTo($frozen);
 
     $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Timezone']);
     ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
@@ -275,12 +277,14 @@ it('starts the project on the local date of the user', function (): void {
     Livewire::test(View::class, ['project' => $project->fresh()])
         ->call('startTask', $project->tasks->first()->getKey());
 
-    expect($project->refresh()->started_date?->toDateString())->toBe('2026-11-19');
+    expect($project->refresh()->started_date?->toDateString())
+        ->toBe($frozen->setTimezone('Pacific/Kiritimati')->toDateString());
 });
 
 it('reports the project as ongoing on the user local date', function (): void {
     /** @var TestCase $this */
-    $this->travelTo(CarbonImmutable::parse('2026-11-18 23:30:00'));
+    // Travel forward so the membership created in beforeEach starts before the frozen time.
+    $this->travelTo(CarbonImmutable::now()->addDay()->setTime(23, 30));
 
     $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Status timezone']);
     ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
