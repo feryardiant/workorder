@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -27,6 +28,7 @@ class View extends Component
 {
     use HasCurrentOrganization, WithPagination;
 
+    #[Locked]
     public Person $person;
 
     public bool $showRoleModal = false;
@@ -144,20 +146,24 @@ class View extends Component
 
     public function render(): ViewContract
     {
+        $organization = $this->requireOrganization();
+
+        // mount() only runs once; a later request must not render a removed member.
+        abort_unless($organization->members()->whereKey($this->person->getKey())->exists(), 404);
+
         $currentRole = $this->currentRole();
-        $role = $this->person->roleIn($this->requireOrganization());
+        $role = $this->person->roleIn($organization);
         $isOwner = $currentRole?->isOwner() ?? false;
         $canManage = $currentRole?->isOwner() || $currentRole?->isAdmin();
 
-        $joinedAt = $this->currentOrganization()
-            ?->members()
+        $joinedAt = $organization->members()
             ->whereKey($this->person->getKey())
             ->first()
             ?->pivot->start_date ?? $this->person->created_at;
 
         /** @disregard P1013 */
         return view('livewire.members.view', [
-            'organization' => $this->requireOrganization(),
+            'organization' => $organization,
             'role' => $role,
             'joinedAt' => $joinedAt,
             'contactEmail' => $this->person->contactDetailValue(ContactDetailType::Email),

@@ -22,7 +22,7 @@ class ProjectFactory extends Factory
      */
     public function definition(): array
     {
-        $code = \sprintf('%s - %s-%03d', 'Kind', now()->format('Ymd'), fake()->numberBetween(1, 999));
+        $code = \sprintf('%s - %s-%s', 'Kind', now()->format('Ymd'), Str::upper(Str::random(6)));
 
         return [
             'uuid' => (string) Str::uuid7(),

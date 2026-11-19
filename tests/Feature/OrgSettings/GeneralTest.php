@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Contacts\SaveContactDetails;
 use App\Enums\AuditEvent;
 use App\Enums\ContactDetailType;
 use App\Enums\Role;
@@ -56,21 +57,6 @@ it('updates the organization summary', function () {
         ->assertHasNoErrors();
 
     expect($organization->fresh()->summary)->toBe('New summary');
-});
-
-it('updates the organization contact details', function () {
-    $organization = Organization::factory()->create();
-
-    actingAsMember($organization, Role::Owner);
-
-    Livewire::test(General::class)
-        ->set('contact_email', 'Hello@Acme.Test')
-        ->set('contact_phone', '0812 3456')
-        ->call('update')
-        ->assertHasNoErrors();
-
-    expect($organization->fresh()->contactDetailValue(ContactDetailType::Email))->toBe('hello@acme.test')
-        ->and($organization->fresh()->contactDetailValue(ContactDetailType::Phone))->toBe('0812 3456');
 });
 
 it('requires a name', function () {
@@ -222,4 +208,118 @@ test('the danger zone is visible only to the owner', function () {
     get(route('org-settings.general'))
         ->assertOk()
         ->assertDontSee(__('Danger Zone'));
+});
+
+it('saving the organization profile keeps its name and summary saved by another session', function () {
+    $organization = Organization::factory()->create(['name' => 'Old Org', 'summary' => 'Old summary']);
+
+    actingAsMember($organization, Role::Owner);
+
+    $component = Livewire::test(General::class);
+
+    $organization->update(['name' => 'Newer Org', 'summary' => 'Newer summary']);
+
+    $component->set('contact_phone', '0899 444')->call('update')->assertHasNoErrors();
+
+    $organization->refresh();
+
+    expect($organization->name)->toBe('Newer Org')
+        ->and($organization->summary)->toBe('Newer summary');
+});
+
+it('clearing the organization summary still clears the text', function () {
+    $organization = Organization::factory()->create(['summary' => 'Old summary']);
+
+    actingAsMember($organization, Role::Owner);
+
+    Livewire::test(General::class)
+        ->set('summary', '')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    expect((string) $organization->fresh()->summary)->toBe('');
+});
+
+it('saving the organization profile keeps a logo saved by another session', function () {
+    Storage::fake();
+
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $component = Livewire::test(General::class);
+
+    Storage::disk()->put('logos/new.png', 'image');
+    $organization->update(['logo_url' => 'logos/new.png']);
+
+    $component->set('summary', 'Updated summary')->call('update')->assertHasNoErrors();
+
+    expect($organization->fresh()->getRawOriginal('logo_url'))->toBe('logos/new.png')
+        ->and(Storage::disk()->exists('logos/new.png'))->toBeTrue();
+});
+
+it('saving the organization profile keeps an address saved by another session', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $component = Livewire::test(General::class);
+
+    $organization->address()->create(validAddress());
+
+    $component->set('summary', 'Updated summary')->call('update')->assertHasNoErrors();
+
+    expect($organization->address()->exists())->toBeTrue();
+});
+
+it('saving the organization profile keeps contact details saved by another session', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $component = Livewire::test(General::class);
+
+    app(SaveContactDetails::class)->handle($organization, [
+        ContactDetailType::Email->value => 'newer@acme.test',
+    ]);
+
+    $component->set('summary', 'Updated summary')->call('update')->assertHasNoErrors();
+
+    expect($organization->fresh()->contactDetailValue(ContactDetailType::Email))->toBe('newer@acme.test');
+});
+
+it('updates the organization contact details', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    Livewire::test(General::class)
+        ->set('contact_email', 'Hello@Acme.Test')
+        ->set('contact_phone', '0812 3456')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    expect($organization->fresh()->contactDetailValue(ContactDetailType::Email))->toBe('hello@acme.test')
+        ->and($organization->fresh()->contactDetailValue(ContactDetailType::Phone))->toBe('0812 3456');
+});
+
+it('an organization save after its own contact save keeps a newer contact email', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $mine = Livewire::test(General::class)
+        ->set('contact_email', 'mine@acme.test')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    Livewire::test(General::class)
+        ->set('contact_email', 'newer@acme.test')
+        ->call('update')
+        ->assertHasNoErrors();
+
+    $mine->set('summary', 'Later summary')->call('update')->assertHasNoErrors();
+
+    expect($organization->fresh()->contactDetailValue(ContactDetailType::Email))->toBe('newer@acme.test')
+        ->and($organization->fresh()->summary)->toBe('Later summary');
 });
