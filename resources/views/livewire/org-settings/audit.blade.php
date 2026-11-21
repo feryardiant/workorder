@@ -4,41 +4,39 @@
         :subheading="__('Every recorded change in this organization')"
         width="max-w-none"
     >
-        <x-slot:actions>
-            <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
-                <x-ui.select wire:model.live="event" :label="__('Event')" :placeholder="__('All events')" :empty="__('No events found')" clearable class="w-full sm:w-44">
-                    @foreach ($events as $case)
-                        <x-ui.select.option :value="$case->value">{{ $case->label() }}</x-ui.select.option>
-                    @endforeach
-                </x-ui.select>
+        <x-slot:actions class="w-full flex-col sm:w-auto sm:flex-row sm:items-end">
+            <x-ui.select wire:model.live="event" :label="__('Event')" :placeholder="__('All events')" :empty="__('No events found')" clearable class="w-full sm:w-44">
+                @foreach ($events as $case)
+                    <x-ui.select.option :value="$case->value">{{ $case->label() }}</x-ui.select.option>
+                @endforeach
+            </x-ui.select>
 
-                <x-ui.select wire:model.live="actor" :label="__('Actor')" :placeholder="__('All actors')" :empty="__('No actors found')" clearable class="w-full sm:w-56">
-                    @foreach ($actors as $member)
-                        <x-ui.select.option
-                            :value="$member->user_id"
-                            :label="$member->user_id === $currentUserId ? $member->name.' ('.__('You').')' : $member->name"
-                        >
-                            <span class="flex min-w-0 items-center gap-2">
-                                <span class="truncate">{{ $member->name }}</span>
-                                @if ($member->user_id === $currentUserId)
-                                    <flux:badge size="sm" color="zinc">{{ __('You') }}</flux:badge>
-                                @endif
-                            </span>
-                        </x-ui.select.option>
-                    @endforeach
-                </x-ui.select>
+            <x-ui.select wire:model.live="actor" :label="__('Actor')" :placeholder="__('All actors')" :empty="__('No actors found')" clearable class="w-full sm:w-56">
+                @foreach ($actors as $member)
+                    <x-ui.select.option
+                        :value="$member->user_id"
+                        :label="$member->user_id === $currentUserId ? $member->name.' ('.__('You').')' : $member->name"
+                    >
+                        <span class="flex min-w-0 items-center gap-2">
+                            <span class="truncate">{{ $member->name }}</span>
+                            @if ($member->user_id === $currentUserId)
+                                <flux:badge size="sm" color="zinc">{{ __('You') }}</flux:badge>
+                            @endif
+                        </span>
+                    </x-ui.select.option>
+                @endforeach
+            </x-ui.select>
 
-                <x-ui.date-picker
-                    wire:model.live="range"
-                    mode="range"
-                    :label="__('Date range')"
-                    with-presets
-                    start-day="0"
-                    :today="$today"
-                    :timezone="$timezone"
-                    class="w-full sm:w-60"
-                />
-            </div>
+            <x-ui.date-picker
+                wire:model.live="range"
+                mode="range"
+                :label="__('Date range')"
+                with-presets
+                start-day="0"
+                :today="$today"
+                :timezone="$timezone"
+                class="w-full sm:w-60"
+            />
         </x-slot:actions>
 
         <flux:table :paginate="$this->logs">
