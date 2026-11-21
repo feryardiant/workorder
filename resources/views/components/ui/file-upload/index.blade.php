@@ -30,6 +30,7 @@
     $rootAttributes = $attributes->filter(
         fn ($value, $key) => ! str_starts_with($key, 'wire:model') && $key !== 'name',
     );
+    $class = $attributes->get('class');
 @endphp
 
 <flux:with-field
@@ -55,7 +56,7 @@
         x-on:livewire-upload-finish="onUploadFinish()"
         x-on:livewire-upload-error="onUploadFinish()"
         x-on:livewire-upload-cancel="onUploadCancel()"
-        class="relative"
+        @class(['relative', $class])
     >
         <input
             type="file"

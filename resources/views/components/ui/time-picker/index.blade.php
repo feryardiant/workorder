@@ -96,6 +96,7 @@
     $rootAttributes = $attributes->filter(
         fn ($value, $key) => ! str_starts_with($key, 'wire:model') && $key !== 'name',
     );
+    $class = $attributes->get('class');
 @endphp
 
 <flux:with-field
@@ -115,7 +116,7 @@
         @if ($isRange) data-range @endif
         @if ($disabled) data-disabled @endif
         @if ($invalid) data-invalid @endif
-        class="relative"
+        @class(['relative', $class])
     >
         @if ($formInputId !== null)
             <input
