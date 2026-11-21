@@ -39,7 +39,7 @@ it('assigns a vendor contact and records the change', function (): void {
     expect($task->refresh()->contact_id)->toBe($contact->getKey());
 
     Livewire::test(View::class, ['project' => $project->fresh()])
-        ->assertSee(__(':task contact changed from :from to :to', [
+        ->assertSee(__(':Task contact changed from :from to :to', [
             'task' => $task->title,
             'from' => __('unassigned'),
             'to' => $contact->name,

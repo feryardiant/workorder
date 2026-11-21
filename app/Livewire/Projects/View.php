@@ -7,7 +7,9 @@ namespace App\Livewire\Projects;
 use App\Actions\Projects\CancelProject;
 use App\Actions\Projects\CancelTask;
 use App\Enums\OrganizationRelationshipType;
+use App\Enums\ProjectAction;
 use App\Enums\ProjectStatus;
+use App\Enums\TaskAction;
 use App\Events\Projects\ProjectChanged;
 use App\Events\Projects\TaskChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
@@ -234,7 +236,7 @@ class View extends Component
         $this->reset('showEdit');
         unset($this->assignees);
 
-        event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ['action' => 'updated']));
+        event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ProjectAction::Updated));
 
         Flux::toast(variant: 'success', text: __('Project updated.'));
     }
@@ -270,7 +272,7 @@ class View extends Component
         $this->reset('showTaskInfo', 'taskInfoId', 'taskTitle', 'taskSummary');
         unset($this->tasks);
 
-        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, ['action' => 'updated']));
+        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, TaskAction::Updated));
 
         Flux::toast(variant: 'success', text: __('Task updated.'));
     }
@@ -291,7 +293,7 @@ class View extends Component
 
         unset($this->tasks, $this->canFinish);
 
-        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, ['action' => 'started']));
+        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, TaskAction::Started));
     }
 
     public function finishTask(int $taskId): void
@@ -305,7 +307,7 @@ class View extends Component
 
         unset($this->tasks, $this->canFinish);
 
-        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, ['action' => 'finished']));
+        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, TaskAction::Finished));
 
         Flux::toast(variant: 'success', text: __('Task finished.'));
     }
@@ -332,9 +334,12 @@ class View extends Component
 
         unset($this->tasks);
 
-        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, [
-            'action' => $finished ? 'finished' : 'reopened',
-        ]));
+        event(new TaskChanged(
+            $this->project->ownerOrganization,
+            Auth::user(),
+            $task,
+            $finished ? TaskAction::Finished : TaskAction::Reopened,
+        ));
     }
 
     public function openCancel(int $taskId): void
@@ -397,7 +402,7 @@ class View extends Component
 
         $this->project->update(['finished_date' => $this->todayDate()]);
 
-        event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ['action' => 'finished']));
+        event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ProjectAction::Finished));
 
         $this->project->refresh();
 
@@ -415,7 +420,7 @@ class View extends Component
     {
         abort_unless($this->canManage, 403);
 
-        event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ['action' => 'archived']));
+        event(new ProjectChanged($this->project->ownerOrganization, Auth::user(), $this->project, ProjectAction::Archived));
 
         $this->project->delete();
 

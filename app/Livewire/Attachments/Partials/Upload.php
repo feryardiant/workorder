@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Attachments\Partials;
 
 use App\Actions\FileStorage;
+use App\Enums\AttachmentAction;
 use App\Events\Projects\AttachmentChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Attachment;
@@ -128,10 +129,7 @@ class Upload extends Component
         }
 
         if ($count > 0) {
-            event(new AttachmentChanged($this->organizationFor($attachable), Auth::user(), $attachable, [
-                'action' => 'added',
-                'count' => $count,
-            ]));
+            event(new AttachmentChanged($this->organizationFor($attachable), Auth::user(), $attachable, AttachmentAction::Added, $count));
         }
 
         $this->reset('uploads', 'showModal', 'attachableType', 'attachableId');
@@ -160,11 +158,14 @@ class Upload extends Component
         $attachable = $this->attachable;
 
         if ($attachable !== null) {
-            event(new AttachmentChanged($this->organizationFor($attachable), Auth::user(), $attachable, [
-                'action' => 'removed',
-                'count' => 1,
-                'name' => $attachment->name,
-            ]));
+            event(new AttachmentChanged(
+                $this->organizationFor($attachable),
+                Auth::user(),
+                $attachable,
+                AttachmentAction::Removed,
+                1,
+                $attachment->name,
+            ));
         }
 
         unset($this->attachments);

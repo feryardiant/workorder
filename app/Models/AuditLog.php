@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Audit\AuditPayload;
+use App\Casts\AsAuditPayload;
 use App\Enums\AuditEvent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +23,7 @@ use Illuminate\Support\Carbon;
  * @property ?string $subject_type
  * @property ?int $subject_id
  * @property ?int $organization_relationship_period_id
- * @property array<string, mixed>|null $changes
+ * @property ?AuditPayload $changes
  * @property Carbon $created_at
  * @property-read ?Organization $organization
  * @property-read ?User $actor
@@ -43,57 +45,13 @@ class AuditLog extends Model
     public const UPDATED_AT = null;
 
     /**
-     * Build a human-readable description of the recorded change.
-     */
-    public function summary(): string
-    {
-        $title = (string) ($this->subject?->getAttribute('title') ?? $this->event->label());
-        $changes = $this->getAttribute('changes') ?? [];
-        $action = $changes['action'] ?? null;
-
-        return match ($this->event) {
-            AuditEvent::TaskChanged => match ($action) {
-                'started' => __(':task started', ['task' => $title]),
-                'finished' => __(':task finished', ['task' => $title]),
-                'reopened' => __(':task reopened', ['task' => $title]),
-                'updated' => __(':task information updated', ['task' => $title]),
-                'assigned_member' => __(':task reassigned from :from to :to', [
-                    'task' => $title,
-                    'from' => $changes['from'] ?? __('unassigned'),
-                    'to' => $changes['to'] ?? __('unassigned'),
-                ]),
-                'assigned_contact' => __(':task contact changed from :from to :to', [
-                    'task' => $title,
-                    'from' => $changes['from'] ?? __('unassigned'),
-                    'to' => $changes['to'] ?? __('unassigned'),
-                ]),
-                default => __(':task updated', ['task' => $title]),
-            },
-            AuditEvent::TaskCanceled => __(':task canceled', ['task' => $title]),
-            AuditEvent::ProjectChanged => match ($action) {
-                'created' => __('Project created'),
-                'finished' => __('Project finished'),
-                'archived' => __('Project archived'),
-                'updated' => __('Project information updated'),
-                default => __('Project updated'),
-            },
-            AuditEvent::ProjectCanceled => __('Project canceled'),
-            AuditEvent::ProjectKindChanged => __('Project kind :title updated', ['title' => $title]),
-            AuditEvent::AttachmentChanged => $action === 'removed'
-                ? trans_choice(':count attachment removed from :target|:count attachments removed from :target', (int) ($changes['count'] ?? 1), ['target' => $title])
-                : trans_choice(':count attachment added to :target|:count attachments added to :target', (int) ($changes['count'] ?? 1), ['target' => $title]),
-            default => $this->event->label(),
-        };
-    }
-
-    /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'event' => AuditEvent::class,
-            'changes' => 'array',
+            'changes' => AsAuditPayload::class,
             'created_at' => 'immutable_datetime',
         ];
     }
@@ -168,29 +126,26 @@ class AuditLog extends Model
     }
 
     /**
-     * Get a human-readable label for the changed subject.
+     * Get a human-readable label for an audit reason code.
      */
-    public function subjectLabel(): string
+    public static function reasonLabel(string $reason): string
     {
-        $subject = $this->subject;
-
-        if ($subject instanceof ApprovalRequest) {
-            return $subject->type->label();
-        }
-
-        if ($subject instanceof Person || $subject instanceof Organization) {
-            return $subject->name;
-        }
-
-        $type = match ($this->subject_type) {
-            Person::class => __('Person'),
-            Organization::class => __('Organization'),
-            ApprovalRequest::class => __('Approval request'),
-            default => class_basename((string) $this->subject_type),
+        return match ($reason) {
+            'role_changed' => __('Role changed'),
+            'member_removed' => __('Member removed'),
+            'member_left' => __('Member left'),
+            'organization_deleted' => __('Organization deleted'),
+            default => $reason,
         };
+    }
 
-        return $subject === null
-            ? __('Deleted :type', ['type' => $type])
-            : __(':type #:id', ['type' => $type, 'id' => $subject->getKey()]);
+    /**
+     * Build a human-readable description of the recorded change.
+     */
+    public function summary(): string
+    {
+        $changes = $this->getAttribute('changes');
+
+        return $changes instanceof AuditPayload ? (string) $changes : $this->event->label();
     }
 }

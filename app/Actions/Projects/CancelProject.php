@@ -38,7 +38,7 @@ final class CancelProject
                 $project->ownerOrganization,
                 $actor,
                 $project,
-                ['action' => 'canceled', 'reason' => $reason],
+                $reason,
             ));
 
             return $project;

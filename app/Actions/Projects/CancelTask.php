@@ -52,14 +52,14 @@ final class CancelTask
                 $project->ownerOrganization,
                 $actor,
                 $task,
-                ['action' => 'canceled', 'reason' => $reason],
+                $reason,
             ));
 
             event(new ProjectCanceled(
                 $project->ownerOrganization,
                 $actor,
                 $project,
-                ['action' => 'canceled', 'reason' => $reason],
+                $reason,
             ));
 
             return $task;

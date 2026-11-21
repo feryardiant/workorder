@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Projects\Partials;
 
+use App\Enums\TaskAction;
 use App\Events\Projects\TaskChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Person;
@@ -71,11 +72,14 @@ class AssignMember extends Component
 
         $task->update(['assignee_id' => $member->getKey()]);
 
-        event(new TaskChanged($task->project->ownerOrganization, Auth::user(), $task, [
-            'action' => 'assigned_member',
-            'from' => $previous,
-            'to' => $member->name,
-        ]));
+        event(new TaskChanged(
+            $task->project->ownerOrganization,
+            Auth::user(),
+            $task,
+            TaskAction::AssignedMember,
+            $previous,
+            $member->name,
+        ));
 
         $this->reset('showModal', 'taskId', 'memberId');
 

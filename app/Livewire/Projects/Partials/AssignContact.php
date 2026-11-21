@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Projects\Partials;
 
 use App\Enums\OrganizationRelationshipType;
+use App\Enums\TaskAction;
 use App\Events\Projects\TaskChanged;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Organization;
@@ -70,11 +71,14 @@ class AssignContact extends Component
 
         $task->update(['contact_id' => $contact->getKey()]);
 
-        event(new TaskChanged($task->project->ownerOrganization, Auth::user(), $task, [
-            'action' => 'assigned_contact',
-            'from' => $previous,
-            'to' => $contact->name,
-        ]));
+        event(new TaskChanged(
+            $task->project->ownerOrganization,
+            Auth::user(),
+            $task,
+            TaskAction::AssignedContact,
+            $previous,
+            $contact->name,
+        ));
 
         $this->reset('showModal', 'taskId', 'contactId');
 
