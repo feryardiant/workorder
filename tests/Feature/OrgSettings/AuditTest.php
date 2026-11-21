@@ -153,6 +153,38 @@ test('the event filter narrows the list and resets an invalid value', function (
     expect($component->instance()->logs->total())->toBe(2);
 });
 
+test('the actor filter lists the current user first with a you label', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+    $member = User::factory()->asMemberOf($organization, Role::Member)->create();
+
+    $component = Livewire::test(Audit::class);
+
+    expect($component->instance()->actors->first()?->is($owner->person))->toBeTrue()
+        ->and($component->instance()->actors->pluck('user_id')->all())->toContain($member->getKey());
+
+    $component->assertSee($owner->person->name.' ('.__('You').')');
+});
+
+test('the actor filter narrows the list and resets an invalid value', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+    $admin = User::factory()->asMemberOf($organization, Role::Admin)->create();
+
+    auditEntryForPage($organization, AuditEvent::ContactCreated, $owner, $owner->person);
+    auditEntryForPage($organization, AuditEvent::ContactCreated, $admin, $admin->person);
+
+    $component = Livewire::test(Audit::class)
+        ->set('actor', (string) $owner->getKey());
+
+    expect($component->instance()->logs->pluck('actor_id')->unique()->values()->all())
+        ->toBe([$owner->getKey()]);
+
+    $component
+        ->set('actor', '999999')
+        ->assertSet('actor', null);
+});
+
 test('the event and range filters compose', function () {
     /** @var TestCase $this */
     $this->travelTo('2026-11-18 12:00:00');

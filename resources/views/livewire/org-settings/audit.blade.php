@@ -6,12 +6,27 @@
     >
         <x-slot:actions>
             <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
-                <flux:select wire:model.live="event" :label="__('Event')" class="w-full sm:w-40">
-                    <flux:select.option value="">{{ __('All events') }}</flux:select.option>
+                <x-ui.select wire:model.live="event" :label="__('Event')" :placeholder="__('All events')" :empty="__('No events found')" clearable class="w-full sm:w-44">
                     @foreach ($events as $case)
-                        <flux:select.option :value="$case->value">{{ $case->label() }}</flux:select.option>
+                        <x-ui.select.option :value="$case->value">{{ $case->label() }}</x-ui.select.option>
                     @endforeach
-                </flux:select>
+                </x-ui.select>
+
+                <x-ui.select wire:model.live="actor" :label="__('Actor')" :placeholder="__('All actors')" :empty="__('No actors found')" clearable class="w-full sm:w-56">
+                    @foreach ($actors as $member)
+                        <x-ui.select.option
+                            :value="$member->user_id"
+                            :label="$member->user_id === $currentUserId ? $member->name.' ('.__('You').')' : $member->name"
+                        >
+                            <span class="flex min-w-0 items-center gap-2">
+                                <span class="truncate">{{ $member->name }}</span>
+                                @if ($member->user_id === $currentUserId)
+                                    <flux:badge size="sm" color="zinc">{{ __('You') }}</flux:badge>
+                                @endif
+                            </span>
+                        </x-ui.select.option>
+                    @endforeach
+                </x-ui.select>
 
                 <x-ui.date-picker
                     wire:model.live="range"
@@ -49,7 +64,14 @@
                         <flux:table.cell align="center">
                             <flux:badge size="sm" :color="$log->event->color()">{{ $log->event->label() }}</flux:badge>
                         </flux:table.cell>
-                        <flux:table.cell align="center">{{ $log->actor?->name ?? __('System') }}</flux:table.cell>
+                        <flux:table.cell align="center">
+                            <span class="relative inline-flex items-center gap-2">
+                                @if ($log->actor)
+                                    <flux:avatar size="xs" :name="$log->actor->name" :src="$log->actor->photo_url" />
+                                @endif
+                                <span class="truncate">{{ $log->actor?->name ?? __('System') }}</span>
+                            </span>
+                        </flux:table.cell>
                         <flux:table.cell class="whitespace-nowrap">
                             <x-local-time :date="$log->created_at" format="d M Y H:i" />
                         </flux:table.cell>
