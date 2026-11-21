@@ -58,10 +58,22 @@ abstract class AuditPayload implements Arrayable, Stringable
     }
 
     /**
+     * The subject name, or null when the subject is gone.
+     */
+    protected function subjectName(): ?string
+    {
+        $name = $this->subject?->getAttribute('name');
+
+        return \is_string($name) && $name !== '' ? $name : null;
+    }
+
+    /**
      * The subject title, falling back to the event label when unavailable.
      */
     protected function subjectTitle(): string
     {
-        return (string) ($this->subject?->getAttribute('title') ?? $this->event->label());
+        return (string) ($this->subject?->getAttribute('title')
+            ?? $this->subjectName()
+            ?? $this->event->label());
     }
 }

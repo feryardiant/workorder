@@ -27,6 +27,8 @@ use App\Enums\ProjectAction;
 use App\Enums\Role;
 use App\Enums\SubsidiaryKind;
 use App\Enums\TaskAction;
+use App\Models\AuditLog;
+use App\Models\Person;
 use App\Models\ProjectKind;
 use App\Models\Task;
 
@@ -52,12 +54,23 @@ test('an audit payload round-trips through its stored array', function (AuditPay
 ]);
 
 test('an audit payload summarizes itself from its event and subject', function () {
+    $person = (new Person)->forceFill(['name' => 'Fery']);
     $task = (new Task)->forceFill(['title' => 'Review deed']);
     $kind = (new ProjectKind)->forceFill(['title' => 'Deed']);
 
     $label = ContactRelationPayload::fromEvent(AuditEvent::ContactRenewed, null, [
         'kind' => 'individual',
         'type' => 'customer',
+    ]);
+
+    $contact = ContactRelationPayload::fromEvent(AuditEvent::ContactCreated, $person, [
+        'kind' => 'individual',
+        'type' => 'customer',
+        'fields' => ['code'],
+    ]);
+
+    $member = MemberAddedPayload::fromEvent(AuditEvent::MemberAdded, $person, [
+        'role' => Role::Admin->value,
     ]);
 
     $assignment = TaskChangedPayload::fromEvent(AuditEvent::TaskChanged, $task, [
@@ -86,7 +99,18 @@ test('an audit payload summarizes itself from its event and subject', function (
         'count' => 2,
     ]);
 
-    expect((string) $label)->toBe(__('Contact renewed'))
+    expect((string) $label)->toBe(__(':type renewed', [
+        'type' => OrganizationRelationshipType::Customer->label(),
+    ]))
+        ->and((string) $contact)->toBe(__(':type added', [
+            'type' => OrganizationRelationshipType::Customer->label(),
+        ]))
+        ->and($contact->details())->toBe([
+            __('Name: :name', ['name' => 'Fery']),
+            __('Fields').': '.AuditLog::fieldLabel('code'),
+        ])
+        ->and((string) $member)->toBe(__(':role added', ['role' => Role::Admin->label()]))
+        ->and($member->details())->toBe([__('Name: :name', ['name' => 'Fery'])])
         ->and((string) $assignment)->toBe(__(':Task reassigned from :from to :to', [
             'task' => 'Review deed',
             'from' => 'Fery',

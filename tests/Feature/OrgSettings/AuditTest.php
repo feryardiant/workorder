@@ -8,6 +8,7 @@ use App\Actions\Contacts\Audit\ContactDeletedPayload;
 use App\Actions\Contacts\Audit\ContactRelationPayload;
 use App\Actions\Contacts\Audit\ContactUpdatedPayload;
 use App\Actions\Contacts\CreateContact;
+use App\Actions\Memberships\Audit\MemberAddedPayload;
 use App\Actions\Memberships\Audit\MemberLeftPayload;
 use App\Actions\Memberships\Audit\MemberRemovedPayload;
 use App\Actions\Memberships\ChangeMemberRole;
@@ -315,6 +316,8 @@ test('contact audit rows render the relationship type without the code value', f
 
     Livewire::test(Audit::class)
         ->assertSee(__('Contact created'))
+        ->assertSee(__(':type added', ['type' => OrganizationRelationshipType::Customer->label()]))
+        ->assertSee(__('Name: :name', ['name' => 'Audit Contact']))
         ->assertSee(OrganizationRelationshipType::Customer->label())
         ->assertDontSee('person@example.com');
 
@@ -325,8 +328,22 @@ test('contact audit rows render the relationship type without the code value', f
 
     Livewire::test(Audit::class)
         ->assertSee(__('Contact renewed'))
+        ->assertSee(__(':type renewed', ['type' => OrganizationRelationshipType::Customer->label()]))
+        ->assertSee(__('Name: :name', ['name' => 'Audit Contact']))
         ->assertSee(OrganizationRelationshipType::Customer->label())
         ->assertDontSee('person@example.com');
+});
+
+test('member entries show the role and member name', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+    $person = Person::factory()->withoutCredential()->create(['name' => 'Fery']);
+
+    auditEntryForPage($organization, AuditEvent::MemberAdded, $owner, $person, new MemberAddedPayload(Role::Owner));
+
+    Livewire::test(Audit::class)
+        ->assertSee(__(':role added', ['role' => Role::Owner->label()]))
+        ->assertSee(__('Name: :name', ['name' => 'Fery']));
 });
 
 test('the default range covers this week', function () {
