@@ -207,10 +207,7 @@ class Form extends Component
 
         Flux::toast(variant: 'success', text: __('Project kind saved.'));
 
-        event(new ProjectKindChanged($this->currentOrganization(), Auth::user(), $kind, [
-            'action' => 'saved',
-            'title' => $kind->title,
-        ]));
+        event(new ProjectKindChanged($this->requireOrganization(), Auth::user(), $kind, $kind->title));
 
         $this->redirectRoute('project-kinds.edit', ['kind' => $kind->getKey()], navigate: true);
     }

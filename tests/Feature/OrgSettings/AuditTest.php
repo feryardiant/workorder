@@ -2,19 +2,32 @@
 
 declare(strict_types=1);
 
+use App\Actions\Audit\AuditPayload;
+use App\Actions\Audit\FeatureToggledPayload;
+use App\Actions\Contacts\Audit\ContactDeletedPayload;
+use App\Actions\Contacts\Audit\ContactRelationPayload;
+use App\Actions\Contacts\Audit\ContactUpdatedPayload;
 use App\Actions\Contacts\CreateContact;
+use App\Actions\Memberships\Audit\MemberAddedPayload;
+use App\Actions\Memberships\Audit\MemberLeftPayload;
+use App\Actions\Memberships\Audit\MemberRemovedPayload;
 use App\Actions\Memberships\ChangeMemberRole;
+use App\Actions\Projects\Audit\TaskChangedPayload;
 use App\Enums\AuditEvent;
 use App\Enums\OrganizationRelationshipType;
 use App\Enums\Role;
+use App\Enums\TaskAction;
 use App\Livewire\OrgSettings\Audit;
 use App\Models\AuditLog;
 use App\Models\Organization;
 use App\Models\Person;
+use App\Models\Project;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -45,15 +58,12 @@ function auditPageContactData(array $overrides = []): array
     ];
 }
 
-/**
- * @param  array<string, mixed>  $changes
- */
 function auditEntryForPage(
     Organization $organization,
     AuditEvent $event,
     ?User $actor = null,
     ?Model $subject = null,
-    array $changes = [],
+    ?AuditPayload $payload = null,
     ?Carbon $createdAt = null,
 ): AuditLog {
     $log = AuditLog::create([
@@ -62,7 +72,7 @@ function auditEntryForPage(
         'event' => $event,
         'subject_type' => $subject?->getMorphClass(),
         'subject_id' => $subject?->getKey(),
-        'changes' => $changes === [] ? null : $changes,
+        'changes' => $payload,
     ]);
 
     if ($createdAt !== null) {
@@ -103,14 +113,12 @@ test('the log only lists the current organization entries', function () {
     $foreignOrganization = Organization::factory()->create();
     $foreignOwner = User::factory()->asMemberOf($foreignOrganization, Role::Owner)->create();
 
-    auditEntryForPage($organization, AuditEvent::ContactCreated, $owner, $owner->person, [
-        'kind' => 'individual',
-        'type' => 'customer',
-    ]);
+    auditEntryForPage($organization, AuditEvent::ContactCreated, $owner, $owner->person, new ContactRelationPayload(
+        'individual',
+        OrganizationRelationshipType::Customer,
+    ));
 
-    auditEntryForPage($foreignOrganization, AuditEvent::MemberLeft, $foreignOwner, $foreignOwner->person, [
-        'via' => 'self',
-    ]);
+    auditEntryForPage($foreignOrganization, AuditEvent::MemberLeft, $foreignOwner, $foreignOwner->person, new MemberLeftPayload('self'));
 
     $component = Livewire::test(Audit::class);
 
@@ -129,7 +137,7 @@ test('the event filter narrows the list and resets an invalid value', function (
     $owner = actingAsMember($organization, Role::Owner);
 
     auditEntryForPage($organization, AuditEvent::ContactCreated, $owner, $owner->person);
-    auditEntryForPage($organization, AuditEvent::MemberLeft, $owner, $owner->person, ['via' => 'self']);
+    auditEntryForPage($organization, AuditEvent::MemberLeft, $owner, $owner->person, new MemberLeftPayload('self'));
 
     $component = Livewire::test(Audit::class)
         ->set('event', AuditEvent::ContactCreated->value)
@@ -144,6 +152,38 @@ test('the event filter narrows the list and resets an invalid value', function (
         ->assertSet('event', null);
 
     expect($component->instance()->logs->total())->toBe(2);
+});
+
+test('the actor filter lists the current user first with a you label', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+    $member = User::factory()->asMemberOf($organization, Role::Member)->create();
+
+    $component = Livewire::test(Audit::class);
+
+    expect($component->instance()->actors->first()?->is($owner->person))->toBeTrue()
+        ->and($component->instance()->actors->pluck('user_id')->all())->toContain($member->getKey());
+
+    $component->assertSee($owner->person->name.' ('.__('You').')');
+});
+
+test('the actor filter narrows the list and resets an invalid value', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+    $admin = User::factory()->asMemberOf($organization, Role::Admin)->create();
+
+    auditEntryForPage($organization, AuditEvent::ContactCreated, $owner, $owner->person);
+    auditEntryForPage($organization, AuditEvent::ContactCreated, $admin, $admin->person);
+
+    $component = Livewire::test(Audit::class)
+        ->set('actor', (string) $owner->getKey());
+
+    expect($component->instance()->logs->pluck('actor_id')->unique()->values()->all())
+        ->toBe([$owner->getKey()]);
+
+    $component
+        ->set('actor', '999999')
+        ->assertSet('actor', null);
 });
 
 test('the event and range filters compose', function () {
@@ -166,7 +206,7 @@ test('the event and range filters compose', function () {
         AuditEvent::MemberLeft,
         $owner,
         $owner->person,
-        ['via' => 'self'],
+        new MemberLeftPayload('self'),
         Carbon::parse('2026-11-17 10:00'),
     );
 
@@ -232,18 +272,14 @@ test('audit details translate field names and feature keys', function () {
     $organization = Organization::factory()->create();
     $owner = actingAsMember($organization, Role::Owner);
 
-    auditEntryForPage($organization, AuditEvent::ContactUpdated, $owner, $owner->person, [
-        'fields' => ['start_date', 'logo_url'],
-    ]);
+    auditEntryForPage($organization, AuditEvent::ContactUpdated, $owner, $owner->person, new ContactUpdatedPayload([
+        'start_date',
+        'logo_url',
+    ]));
 
-    auditEntryForPage($organization, AuditEvent::FeatureToggled, $owner, $organization, [
-        'feature' => 'contact-gender',
-        'enabled' => true,
-    ]);
+    auditEntryForPage($organization, AuditEvent::FeatureToggled, $owner, $organization, new FeatureToggledPayload('contact-gender', true));
 
-    auditEntryForPage($organization, AuditEvent::MemberRemoved, $owner, $owner->person, [
-        'last_membership' => true,
-    ]);
+    auditEntryForPage($organization, AuditEvent::MemberRemoved, $owner, $owner->person, new MemberRemovedPayload('manager', true));
 
     Livewire::test(Audit::class)
         ->assertSee(__('Start date'))
@@ -280,6 +316,8 @@ test('contact audit rows render the relationship type without the code value', f
 
     Livewire::test(Audit::class)
         ->assertSee(__('Contact created'))
+        ->assertSee(__(':type added', ['type' => OrganizationRelationshipType::Customer->label()]))
+        ->assertSee(__('Name: :name', ['name' => 'Audit Contact']))
         ->assertSee(OrganizationRelationshipType::Customer->label())
         ->assertDontSee('person@example.com');
 
@@ -290,8 +328,22 @@ test('contact audit rows render the relationship type without the code value', f
 
     Livewire::test(Audit::class)
         ->assertSee(__('Contact renewed'))
+        ->assertSee(__(':type renewed', ['type' => OrganizationRelationshipType::Customer->label()]))
+        ->assertSee(__('Name: :name', ['name' => 'Audit Contact']))
         ->assertSee(OrganizationRelationshipType::Customer->label())
         ->assertDontSee('person@example.com');
+});
+
+test('member entries show the role and member name', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+    $person = Person::factory()->withoutCredential()->create(['name' => 'Fery']);
+
+    auditEntryForPage($organization, AuditEvent::MemberAdded, $owner, $person, new MemberAddedPayload(Role::Owner));
+
+    Livewire::test(Audit::class)
+        ->assertSee(__(':role added', ['role' => Role::Owner->label()]))
+        ->assertSee(__('Name: :name', ['name' => 'Fery']));
 });
 
 test('the default range covers this week', function () {
@@ -414,19 +466,21 @@ test('the log is paginated newest first', function () {
     $component->assertSet('paginators.page', 1);
 });
 
-test('a soft deleted subject still shows its name', function () {
+test('a soft deleted subject still renders its audit row', function () {
     $organization = Organization::factory()->create();
     $owner = actingAsMember($organization, Role::Owner);
     $person = Person::factory()->withoutCredential()->create(['name' => 'Archived Person']);
 
     $person->delete();
 
-    auditEntryForPage($organization, AuditEvent::ContactDeleted, $owner, $person, ['detached_only' => false]);
+    auditEntryForPage($organization, AuditEvent::ContactDeleted, $owner, $person, new ContactDeletedPayload(false));
 
-    Livewire::test(Audit::class)->assertSee('Archived Person');
+    Livewire::test(Audit::class)
+        ->assertOk()
+        ->assertSee(__('Contact deleted'));
 });
 
-test('a hard deleted subject falls back to a deleted label', function () {
+test('a hard deleted subject does not break the audit log', function () {
     $organization = Organization::factory()->create();
     $owner = actingAsMember($organization, Role::Owner);
     $person = Person::factory()->withoutCredential()->create();
@@ -435,7 +489,58 @@ test('a hard deleted subject falls back to a deleted label', function () {
 
     auditEntryForPage($organization, AuditEvent::ContactDeleted, $owner, $person);
 
-    Livewire::test(Audit::class)->assertSee(__('Deleted :type', ['type' => __('Person')]));
+    Livewire::test(Audit::class)->assertOk();
+});
+
+test('task details keep resolving an archived project', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+
+    $project = Project::factory()->create([
+        'owner_organization_id' => $organization->getKey(),
+        'title' => 'Archived Project',
+    ]);
+
+    $task = Task::factory()->for($project)->create(['title' => 'Archived Task']);
+
+    $project->delete();
+
+    auditEntryForPage($organization, AuditEvent::TaskChanged, $owner, $task, new TaskChangedPayload(TaskAction::Updated));
+
+    Livewire::test(Audit::class)
+        ->assertOk()
+        ->assertSee(__('Project: :project', ['project' => 'Archived Project']));
+});
+
+test('task details eager load the project instead of querying per row', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+
+    $project = Project::factory()->create([
+        'owner_organization_id' => $organization->getKey(),
+        'title' => 'Shared Project',
+    ]);
+
+    $tasks = Task::factory()->count(3)->for($project)->create();
+
+    foreach ($tasks as $task) {
+        auditEntryForPage($organization, AuditEvent::TaskChanged, $owner, $task, new TaskChangedPayload(TaskAction::Updated));
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    Livewire::test(Audit::class)
+        ->assertOk()
+        ->assertSee(__('Project: :project', ['project' => 'Shared Project']));
+
+    $projectQueries = collect(DB::getQueryLog())
+        ->filter(fn (array $query): bool => str_contains($query['query'], 'from "projects"'))
+        ->count();
+
+    DB::disableQueryLog();
+
+    expect($projectQueries)->toBe(1);
 });
 
 test('entries without an actor show the system label', function () {

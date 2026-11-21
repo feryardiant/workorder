@@ -62,7 +62,7 @@ it('assigns a member and records the reassignment', function (): void {
         ->and(AuditLog::query()->where('event', AuditEvent::TaskChanged)->count())->toBe(1);
 
     Livewire::test(View::class, ['project' => $project->fresh()])
-        ->assertSee(__(':task reassigned from :from to :to', [
+        ->assertSee(__(':Task reassigned from :from to :to', [
             'task' => $task->title,
             'from' => __('unassigned'),
             'to' => $member?->name,

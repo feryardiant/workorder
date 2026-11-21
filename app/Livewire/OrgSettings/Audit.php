@@ -7,20 +7,29 @@ namespace App\Livewire\OrgSettings;
 use App\Enums\AuditEvent;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\AuditLog;
+use App\Models\Person;
+use App\Models\Task;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * @property-read Collection<int, Person> $actors
+ */
 class Audit extends Component
 {
     use HasCurrentOrganization, WithPagination;
 
     public ?string $event = null;
+
+    public ?string $actor = null;
 
     /**
      * @var array{start: ?string, end: ?string}
@@ -54,6 +63,20 @@ class Audit extends Component
     }
 
     /**
+     * Reset to the first page when the actor filter changes.
+     */
+    public function updatedActor(): void
+    {
+        if ($this->actor !== null && ! $this->actors->contains('user_id', (int) $this->actor)) {
+            $this->actor = null;
+        }
+
+        unset($this->logs);
+
+        $this->resetPage();
+    }
+
+    /**
      * Normalize the date range and reset to the first page.
      */
     public function updatedRange(): void
@@ -63,6 +86,25 @@ class Audit extends Component
         unset($this->logs);
 
         $this->resetPage();
+    }
+
+    /**
+     * The organization's members that have an actor account, current user first.
+     *
+     * @return Collection<int, Person>
+     */
+    #[Computed]
+    public function actors(): Collection
+    {
+        $currentUserId = Auth::id();
+
+        return $this->requireOrganization()
+            ->members()
+            ->whereNotNull('user_id')
+            ->get()
+            ->sortBy('name')
+            ->sortBy(fn (Person $person): int => $person->user_id === $currentUserId ? 0 : 1)
+            ->values();
     }
 
     /**
@@ -81,8 +123,14 @@ class Audit extends Component
 
         $query = AuditLog::query()
             ->where('organization_id', $this->requireOrganization()->getKey())
-            ->with(['actor.person', 'subject'])
-            ->when($this->event !== null, fn ($query) => $query->where('event', $this->event));
+            ->with([
+                'actor.person',
+                'subject' => fn (MorphTo $subject) => $subject->morphWith([
+                    Task::class => ['project' => fn ($project) => $project->withTrashed()],
+                ]),
+            ])
+            ->when($this->event !== null, fn ($query) => $query->where('event', $this->event))
+            ->when($this->actor !== null, fn ($query) => $query->where('actor_id', (int) $this->actor));
 
         if ($start !== null) {
             $query->where('created_at', '>=', CarbonImmutable::parse($start, $timezone)->startOfDay()->utc());
@@ -100,6 +148,8 @@ class Audit extends Component
         /** @disregard P1013 */
         return view('livewire.org-settings.audit', [
             'events' => AuditEvent::cases(),
+            'actors' => $this->actors,
+            'currentUserId' => Auth::id(),
             'today' => CarbonImmutable::now($this->userTimezone())->toDateString(),
             'timezone' => $this->userTimezone(),
         ])->title(__('Audit log'));

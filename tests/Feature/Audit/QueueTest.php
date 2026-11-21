@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Actions\Audit\LegacyPayload;
+use App\Enums\AuditEvent;
+use App\Enums\OrganizationRelationshipType;
 use App\Enums\Role;
 use App\Events\Contacts\ContactCreated;
 use App\Listeners\RecordAuditLog;
@@ -21,9 +24,7 @@ test('audit events are queued for the audit listener', function () {
     $organization = Organization::factory()->create();
     $actor = actingAsMember($organization, Role::Owner);
 
-    event(new ContactCreated($organization, $actor, $organization, [
-        'type' => 'customer',
-    ]));
+    event(new ContactCreated($organization, $actor, $organization, OrganizationRelationshipType::Customer));
 
     Queue::assertPushed(CallQueuedListener::class, fn (CallQueuedListener $job): bool => $job->class === RecordAuditLog::class);
 });
@@ -31,9 +32,7 @@ test('audit events are queued for the audit listener', function () {
 test('late audit events are skipped after the organization is deleted', function () {
     $organization = Organization::factory()->create();
 
-    $event = new ContactCreated($organization, null, $organization, [
-        'type' => 'customer',
-    ]);
+    $event = new ContactCreated($organization, null, $organization, OrganizationRelationshipType::Customer);
 
     $organization->forceDelete();
 
@@ -46,9 +45,7 @@ test('audit rows drop an actor that was deleted before the listener runs', funct
     $organization = Organization::factory()->create();
     $actor = User::factory()->withProfile()->create();
 
-    $event = new ContactCreated($organization, $actor, $organization, [
-        'type' => 'customer',
-    ]);
+    $event = new ContactCreated($organization, $actor, $organization, OrganizationRelationshipType::Customer);
 
     $actor->delete();
 
@@ -65,9 +62,7 @@ test('audit rows keep the event occurrence time instead of the queue time', func
 
     $this->travelTo('2026-11-15 23:59:00');
 
-    $event = new ContactCreated($organization, null, $organization, [
-        'type' => 'customer',
-    ]);
+    $event = new ContactCreated($organization, null, $organization, OrganizationRelationshipType::Customer);
 
     $this->travelTo('2026-11-16 00:05:00');
 
@@ -78,4 +73,34 @@ test('audit rows keep the event occurrence time instead of the queue time', func
         ->sole()
         ->created_at
         ->toDateTimeString())->toBe('2026-11-15 23:59:00');
+});
+
+test('audit events queued before the payload refactor keep their legacy changes', function () {
+    $organization = Organization::factory()->create();
+
+    $event = (new ReflectionClass(ContactCreated::class))->newInstanceWithoutConstructor();
+    $event->organizationId = $organization->getKey();
+    $event->actorId = null;
+    $event->subjectType = null;
+    $event->subjectId = null;
+    $event->relationshipPeriodId = null;
+    $event->occurredAt = now()->toImmutable();
+    $event->changes = ['type' => 'customer'];
+
+    app(RecordAuditLog::class)->handle($event);
+
+    $log = AuditLog::query()->sole();
+
+    expect($log->event)->toBe(AuditEvent::ContactCreated)
+        ->and($log->changes)->toBeInstanceOf(LegacyPayload::class)
+        ->and($log->changes?->toArray())->toBe(['type' => 'customer'])
+        ->and((string) $log->changes)->toBe(__('Contact created'));
+});
+
+test('audit events without a payload or legacy changes are skipped', function () {
+    $event = (new ReflectionClass(ContactCreated::class))->newInstanceWithoutConstructor();
+
+    app(RecordAuditLog::class)->handle($event);
+
+    expect(AuditLog::query()->count())->toBe(0);
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Projects;
 
+use App\Enums\ProjectAction;
 use App\Events\Projects\ProjectChanged;
 use App\Models\Organization;
 use App\Models\Person;
@@ -66,7 +67,7 @@ final class CreateProject
 
             $this->copyTaskTree($project, $kind);
 
-            event(new ProjectChanged($tenant, $actor, $project, ['action' => 'created', 'title' => $project->title]));
+            event(new ProjectChanged($tenant, $actor, $project, ProjectAction::Created, $project->title));
 
             return $project;
         });
