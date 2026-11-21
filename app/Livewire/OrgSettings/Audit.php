@@ -7,9 +7,11 @@ namespace App\Livewire\OrgSettings;
 use App\Enums\AuditEvent;
 use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\AuditLog;
+use App\Models\Task;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
@@ -81,7 +83,12 @@ class Audit extends Component
 
         $query = AuditLog::query()
             ->where('organization_id', $this->requireOrganization()->getKey())
-            ->with(['actor.person', 'subject'])
+            ->with([
+                'actor.person',
+                'subject' => fn (MorphTo $subject) => $subject->morphWith([
+                    Task::class => ['project' => fn ($project) => $project->withTrashed()],
+                ]),
+            ])
             ->when($this->event !== null, fn ($query) => $query->where('event', $this->event));
 
         if ($start !== null) {

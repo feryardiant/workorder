@@ -53,6 +53,20 @@ it('includes the history of the project tasks', function (): void {
         ->assertSee(__(':Task finished', ['task' => $task->title]));
 });
 
+it('shows entries recorded after the component has mounted', function (): void {
+    /** @var TestCase $this */
+    $project = projectForHistory($this->tenant);
+    $task = $project->tasks->first();
+
+    $component = Livewire::test(History::class, ['project' => $project])
+        ->assertDontSee(__(':Task started', ['task' => $task->title]));
+
+    event(new TaskChanged($this->tenant, Auth::user(), $task, TaskAction::Started));
+
+    $component->call('$refresh')
+        ->assertSee(__(':Task started', ['task' => $task->title]));
+});
+
 it('only lists the history of the given project', function (): void {
     /** @var TestCase $this */
     $project = projectForHistory($this->tenant);

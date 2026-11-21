@@ -55,7 +55,9 @@ final class AttachmentChangedPayload extends AuditPayload
     public function details(): array
     {
         $project = $this->subject instanceof Task
-            ? $this->subject->project()->withTrashed()->first()
+            ? ($this->subject->relationLoaded('project')
+                ? $this->subject->project
+                : $this->subject->project()->withTrashed()->first())
             : $this->subject;
 
         return [

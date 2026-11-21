@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Actions\Audit\LegacyPayload;
+use App\Enums\AuditEvent;
 use App\Enums\OrganizationRelationshipType;
 use App\Enums\Role;
 use App\Events\Contacts\ContactCreated;
@@ -71,4 +73,34 @@ test('audit rows keep the event occurrence time instead of the queue time', func
         ->sole()
         ->created_at
         ->toDateTimeString())->toBe('2026-11-15 23:59:00');
+});
+
+test('audit events queued before the payload refactor keep their legacy changes', function () {
+    $organization = Organization::factory()->create();
+
+    $event = (new ReflectionClass(ContactCreated::class))->newInstanceWithoutConstructor();
+    $event->organizationId = $organization->getKey();
+    $event->actorId = null;
+    $event->subjectType = null;
+    $event->subjectId = null;
+    $event->relationshipPeriodId = null;
+    $event->occurredAt = now()->toImmutable();
+    $event->changes = ['type' => 'customer'];
+
+    app(RecordAuditLog::class)->handle($event);
+
+    $log = AuditLog::query()->sole();
+
+    expect($log->event)->toBe(AuditEvent::ContactCreated)
+        ->and($log->changes)->toBeInstanceOf(LegacyPayload::class)
+        ->and($log->changes?->toArray())->toBe(['type' => 'customer'])
+        ->and((string) $log->changes)->toBe(__('Contact created'));
+});
+
+test('audit events without a payload or legacy changes are skipped', function () {
+    $event = (new ReflectionClass(ContactCreated::class))->newInstanceWithoutConstructor();
+
+    app(RecordAuditLog::class)->handle($event);
+
+    expect(AuditLog::query()->count())->toBe(0);
 });

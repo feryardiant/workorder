@@ -39,6 +39,15 @@ abstract class AuditableEvent
 
     public CarbonImmutable $occurredAt;
 
+    /**
+     * Legacy changes carried by events queued before the typed payload refactor.
+     *
+     * @deprecated Only read to drain pre-refactor queue jobs.
+     *
+     * @var array<string, mixed>
+     */
+    public array $changes = [];
+
     public function __construct(
         ?Organization $organization,
         ?User $actor,

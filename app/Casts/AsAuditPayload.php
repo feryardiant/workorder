@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Casts;
 
 use App\Actions\Audit\AuditPayload;
+use App\Actions\Audit\LegacyPayload;
 use App\Models\AuditLog;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
@@ -31,20 +32,24 @@ final class AsAuditPayload implements CastsAttributes
         $stored = \is_string($value) ? json_decode($value, true) : $value;
 
         if (
-            ! \is_array($stored)
-            || ! array_is_list($stored)
-            || \count($stored) !== 2
-            || ! \is_string($stored[0])
-            || ! \is_array($stored[1])
-            || ! is_a($stored[0], AuditPayload::class, true)
+            \is_array($stored)
+            && array_is_list($stored)
+            && \count($stored) === 2
+            && \is_string($stored[0])
+            && \is_array($stored[1])
+            && is_a($stored[0], AuditPayload::class, true)
         ) {
+            /** @var class-string<AuditPayload> $class */
+            $class = $stored[0];
+
+            return $class::fromEvent($model->event, $model->subject, $stored[1]);
+        }
+
+        if (! \is_array($stored)) {
             throw new UnexpectedValueException('Unrecognized audit payload format.');
         }
 
-        /** @var class-string<AuditPayload> $class */
-        $class = $stored[0];
-
-        return $class::fromEvent($model->event, $model->subject, $stored[1]);
+        return LegacyPayload::fromEvent($model->event, $model->subject, $stored);
     }
 
     public function set(Model $model, string $key, mixed $value, array $attributes): ?string

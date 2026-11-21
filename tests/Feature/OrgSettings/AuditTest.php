@@ -26,6 +26,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -460,6 +461,37 @@ test('task details keep resolving an archived project', function () {
     Livewire::test(Audit::class)
         ->assertOk()
         ->assertSee(__('Project: :project', ['project' => 'Archived Project']));
+});
+
+test('task details eager load the project instead of querying per row', function () {
+    $organization = Organization::factory()->create();
+    $owner = actingAsMember($organization, Role::Owner);
+
+    $project = Project::factory()->create([
+        'owner_organization_id' => $organization->getKey(),
+        'title' => 'Shared Project',
+    ]);
+
+    $tasks = Task::factory()->count(3)->for($project)->create();
+
+    foreach ($tasks as $task) {
+        auditEntryForPage($organization, AuditEvent::TaskChanged, $owner, $task, new TaskChangedPayload(TaskAction::Updated));
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    Livewire::test(Audit::class)
+        ->assertOk()
+        ->assertSee(__('Project: :project', ['project' => 'Shared Project']));
+
+    $projectQueries = collect(DB::getQueryLog())
+        ->filter(fn (array $query): bool => str_contains($query['query'], 'from "projects"'))
+        ->count();
+
+    DB::disableQueryLog();
+
+    expect($projectQueries)->toBe(1);
 });
 
 test('entries without an actor show the system label', function () {
