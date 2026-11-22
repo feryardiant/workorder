@@ -26,7 +26,7 @@ it('refreshes the project history after a task starts without reloading', functi
 
     visit(route('projects.view', $project))
         ->assertSee(__('Project histories'))
-        ->click('Mulai tugas')
+        ->click('button[aria-label="'.__('Start task').'"]')
         ->wait(6)
         ->assertSee(__(':Task started', ['task' => 'Polled task']));
 
