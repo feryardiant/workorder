@@ -10,6 +10,7 @@ use App\Livewire\Concerns\HasCurrentOrganization;
 use App\Models\Organization;
 use App\Models\OrganizationRelationship;
 use App\Models\OrganizationRelationshipPeriod;
+use App\Models\Person;
 use App\Models\Project;
 use App\Support\Feature\ContactGender;
 use Illuminate\Contracts\View\View as ViewContract;
@@ -54,7 +55,7 @@ class View extends Component
     }
 
     /**
-     * Projects tied to the contact: assigned to a person, or ordered by an organization customer.
+     * Projects tied to the contact: assigned to a person, or ordered by a customer.
      *
      * @return LengthAwarePaginator<int, Project>
      */
@@ -69,11 +70,14 @@ class View extends Component
 
         return Project::query()
             ->where('owner_organization_id', $this->requireOrganization()->getKey())
-            ->when(
-                $stakeholder instanceof Organization,
-                fn ($query) => $query->where('customer_id', $stakeholder->getKey()),
-                fn ($query) => $query->where('assignee_id', $stakeholder->getKey()),
-            )
+            ->where(function ($query) use ($stakeholder): void {
+                $query->where('customer_type', $stakeholder->getMorphClass())
+                    ->where('customer_id', $stakeholder->getKey());
+
+                if ($stakeholder instanceof Person) {
+                    $query->orWhere('assignee_id', $stakeholder->getKey());
+                }
+            })
             ->with(['kind', 'customer', 'assignee'])
             ->latest('created_at')
             ->paginate(10);

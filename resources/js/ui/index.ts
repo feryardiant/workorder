@@ -7,7 +7,9 @@
  * Known limitations:
  * - The Blade components render once (`wire:ignore`), so server-rendered
  *   options and `min`/`max` bounds are read at mount. Remount with a changing
- *   `wire:key` when those values can change after the first render.
+ *   `wire:key` when those values can change after the first render. Put the key
+ *   on an element wrapping the component: the component's own attributes are
+ *   folded into `flux:with-field`, which drops it.
  * - Popovers close on Escape and outside pointerdown. A picker nested inside a
  *   Flux modal can close both when Escape reaches the document twice.
  * - Dialog pickers lock document scroll. A Flux modal closed programmatically

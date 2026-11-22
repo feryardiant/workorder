@@ -80,17 +80,17 @@ class ProjectSeeder extends Seeder
     }
 
     /**
-     * @return Collection<int, Organization>
+     * @return Collection<int, Organization|Person>
      */
     private function customers(Organization $root): Collection
     {
-        $customers = $root->organizationCounterparties(OrganizationRelationshipType::Customer)->get();
+        $customers = $root->counterparties(OrganizationRelationshipType::Customer);
 
         if ($customers->isNotEmpty()) {
             return $customers;
         }
 
-        return Organization::factory()
+        Organization::factory()
             ->count(3)
             ->create(['owner_organization_id' => $root->getKey()])
             ->each(function (Organization $customer) use ($root): void {
@@ -99,6 +99,8 @@ class ProjectSeeder extends Seeder
                     'start_date' => now(),
                 ]);
             });
+
+        return $root->counterparties(OrganizationRelationshipType::Customer);
     }
 
     /**

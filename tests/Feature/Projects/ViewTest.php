@@ -420,11 +420,12 @@ it('updates the customer from the edit modal', function (): void {
 
     Livewire::test(View::class, ['project' => $project->fresh()])
         ->call('openEdit')
-        ->set('customerId', $replacement->getKey())
+        ->set('customerRef', $replacement->getMorphClass().':'.$replacement->getKey())
         ->call('saveProject')
         ->assertHasNoErrors();
 
-    expect($project->refresh()->customer_id)->toBe($replacement->getKey());
+    expect($project->refresh()->customer_id)->toBe($replacement->getKey())
+        ->and($project->customer_type)->toBe($replacement->getMorphClass());
 });
 
 it('rejects state changes on finished and canceled records', function (): void {

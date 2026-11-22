@@ -29,7 +29,7 @@ use Throwable;
 /**
  * @property-read LengthAwarePaginator<int, Project> $projects
  * @property-read Collection<int, ProjectKind> $kinds
- * @property-read Collection<int, Organization> $customers
+ * @property-read Collection<int, Organization|Person> $customers
  * @property-read Collection<int, Person> $members
  * @property-read bool $isManager
  */
@@ -41,7 +41,7 @@ class Index extends Component
 
     public ?string $kindId = null;
 
-    public ?string $customerId = null;
+    public ?string $customerRef = null;
 
     public ?string $status = null;
 
@@ -59,7 +59,9 @@ class Index extends Component
 
     public ?int $createKindId = null;
 
-    public ?int $createCustomerId = null;
+    public ?string $createCustomerRef = null;
+
+    public int $customersVersion = 0;
 
     public ?int $createAssigneeId = null;
 
@@ -111,7 +113,9 @@ class Index extends Component
                     ->orWhere('summary', 'ilike', '%'.$this->search.'%'),
             ))
             ->when(filled($this->kindId), fn (Builder $query): Builder => $query->where('kind_id', (int) $this->kindId))
-            ->when(filled($this->customerId), fn (Builder $query): Builder => $query->where('customer_id', (int) $this->customerId))
+            ->when(filled($this->customerRef), function (Builder $query): Builder {
+                return $this->scopeCustomer($query, (string) $this->customerRef);
+            })
             ->when($this->status !== null, fn (Builder $query): Builder => $this->applyStatus($query))
             ->when(filled($this->startedRange['start'] ?? null), fn (Builder $query): Builder => $query->whereDate('started_date', '>=', $this->startedRange['start']))
             ->when(filled($this->startedRange['end'] ?? null), fn (Builder $query): Builder => $query->whereDate('started_date', '<=', $this->startedRange['end']))
@@ -155,7 +159,7 @@ class Index extends Component
     }
 
     /**
-     * @return Collection<int, Organization>
+     * @return Collection<int, Organization|Person>
      */
     #[Computed]
     public function customers(): Collection
@@ -166,7 +170,7 @@ class Index extends Component
             return new Collection;
         }
 
-        return $organization->organizationCounterparties(OrganizationRelationshipType::Customer)->get();
+        return $organization->counterparties(OrganizationRelationshipType::Customer);
     }
 
     /**
@@ -192,7 +196,7 @@ class Index extends Component
         $this->clearSelection();
     }
 
-    public function updatedCustomerId(): void
+    public function updatedCustomerRef(): void
     {
         $this->resetPage();
         $this->clearSelection();
@@ -241,12 +245,13 @@ class Index extends Component
     }
 
     #[On('contact-updated')]
-    public function refreshCustomers(?int $contactId = null): void
+    public function refreshCustomers(?int $contactId = null, ?string $contactType = null): void
     {
         unset($this->customers);
+        $this->customersVersion++;
 
-        if ($contactId !== null) {
-            $this->createCustomerId = $contactId;
+        if ($contactId !== null && $contactType !== null) {
+            $this->createCustomerRef = $contactType.':'.$contactId;
         }
     }
 
@@ -256,7 +261,7 @@ class Index extends Component
 
         $this->validate([
             'createKindId' => ['required', 'integer'],
-            'createCustomerId' => ['required', 'integer'],
+            'createCustomerRef' => ['required', 'string'],
             'createAssigneeId' => ['required', 'integer'],
             'createSummary' => ['nullable', 'string', 'max:5000'],
             'createMandatedDate' => ['nullable', 'date'],
@@ -264,7 +269,9 @@ class Index extends Component
         ]);
 
         $kind = $this->kinds->firstWhere('id', $this->createKindId);
-        $customer = $this->customers->firstWhere('id', $this->createCustomerId);
+        $customer = $this->customers->first(
+            fn (Organization|Person $customer): bool => $customer->getMorphClass().':'.$customer->getKey() === $this->createCustomerRef,
+        );
         $assignee = $this->members->firstWhere('id', $this->createAssigneeId);
 
         abort_if($kind === null || $customer === null || $assignee === null, 422);
@@ -284,7 +291,7 @@ class Index extends Component
         $this->reset(
             'showCreate',
             'createKindId',
-            'createCustomerId',
+            'createCustomerRef',
             'createAssigneeId',
             'createSummary',
             'createMandatedDate',
@@ -423,6 +430,19 @@ class Index extends Component
         $user = Auth::user();
 
         return CarbonImmutable::now($user->timezone ?? 'UTC')->toDateString();
+    }
+
+    /**
+     * Narrow projects to the customer behind a "{type}:{id}" reference.
+     *
+     * @param  Builder<Project>  $query
+     * @return Builder<Project>
+     */
+    private function scopeCustomer(Builder $query, string $reference): Builder
+    {
+        [$type, $id] = explode(':', $reference, 2) + [null, null];
+
+        return $query->where('customer_type', $type)->where('customer_id', (int) $id);
     }
 
     /**

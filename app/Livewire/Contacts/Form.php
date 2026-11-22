@@ -358,7 +358,7 @@ class Form extends Component
         $this->showModal = false;
         $this->rememberContactDetails();
         $this->rememberBaselines();
-        $this->dispatch('contact-updated', contactId: $entity?->getKey());
+        $this->dispatch('contact-updated', contactId: $entity?->getKey(), contactType: $entity?->getMorphClass());
 
         Flux::toast(variant: 'success', text: $message);
     }

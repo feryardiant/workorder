@@ -242,7 +242,7 @@
                 <flux:card.footer>
                     <div class="flex flex-wrap items-center gap-4">
                         <div class="flex flex-1 items-center gap-2">
-                            <flux:avatar size="sm" :src="$project->customer?->logo_url" :name="$project->customer?->name" :initials="$project->customer?->initials()" />
+                            <flux:avatar size="sm" :src="$project->customer?->photo_url ?? $project->customer?->logo_url" :name="$project->customer?->name" :initials="$project->customer?->initials()" />
                             <span class="truncate">{{ $project->customer?->name }}</span>
                         </div>
 
@@ -303,9 +303,9 @@
             <div class="flex flex-col gap-4">
                 <flux:input wire:model="title" :label="__('Title')" />
 
-            <x-ui.select wire:model="customerId" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
+            <x-ui.select wire:model="customerRef" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
                 @foreach ($customers as $customer)
-                    <x-ui.select.option value="{{ $customer->id }}" icon="building-office">{{ $customer->name }}</x-ui.select.option>
+                    <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }}</x-ui.select.option>
                 @endforeach
             </x-ui.select>
                 <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" />
