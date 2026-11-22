@@ -243,7 +243,7 @@
                     <div class="flex flex-wrap items-center gap-4">
                         <div class="flex flex-1 items-center gap-2">
                             <flux:avatar size="sm" :src="$project->customer?->photo_url ?? $project->customer?->logo_url" :name="$project->customer?->name" :initials="$project->customer?->initials()" />
-                            <span class="truncate">{{ $project->customer?->name }}</span>
+                            <span class="truncate">{{ $project->customer?->name ?? '—' }}</span>
                         </div>
 
                         @if ($assignees->isNotEmpty())

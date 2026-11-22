@@ -146,7 +146,7 @@
                     <flux:table.cell class="w-1/12">
                         <div class="flex items-center gap-2">
                             <flux:avatar size="xs" :src="$project->customer?->photo_url ?? $project->customer?->logo_url" :name="$project->customer?->name" />
-                            <span class="truncate">{{ $project->customer?->name }}</span>
+                            <span class="truncate">{{ $project->customer?->name ?? '—' }}</span>
                         </div>
                     </flux:table.cell>
 

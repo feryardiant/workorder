@@ -35,7 +35,7 @@
                                         <span class="truncate">{{ $project->assignee->name }}</span>
                                     @else
                                         <flux:avatar tooltip size="xs" :src="$project->customer?->photo_url ?? $project->customer?->logo_url" :name="$project->customer?->name" />
-                                        <span class="truncate">{{ $project->customer?->name }}</span>
+                                        <span class="truncate">{{ $project->customer?->name ?? '—' }}</span>
                                     @endif
                                 </div>
                             </flux:table.cell>
