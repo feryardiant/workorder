@@ -73,6 +73,12 @@ class View extends Component
 
     public string $cancelReason = '';
 
+    public bool $showPostpone = false;
+
+    public ?int $postponeTaskId = null;
+
+    public string $postponeReason = '';
+
     public bool $showCancelProject = false;
 
     public string $projectCancelReason = '';
@@ -255,8 +261,9 @@ class View extends Component
 
         abort_if($task->isDisabled() || $task->isCanceled(), 403);
         abort_unless($task->status->isNotStarted(), 403);
+        abort_if($task->isBlockedByPostponed(), 403);
 
-        $task->update(['started_at' => $this->now()]);
+        $task->update(['started_at' => $this->now(), 'postponed_at' => null]);
 
         if ($task->project->status->isNotStarted() || $task->project->status->isScheduled()) {
             $task->project->update(['started_date' => $this->todayDate()]);
@@ -274,6 +281,8 @@ class View extends Component
 
         abort_if($task->isDisabled() || $task->isCanceled(), 403);
         abort_unless($task->status->isOnGoing(), 403);
+        abort_if($task->isBlockedByPostponed(), 403);
+        abort_if($task->hasPostponedSubTask(), 403);
 
         $task->update(['finished_at' => $this->now()]);
 
@@ -293,6 +302,10 @@ class View extends Component
         abort_if($task->parent?->status->isFinished() === true, 403);
 
         $finished = $task->finished_at === null;
+
+        if ($finished) {
+            abort_if($task->isPostponed() || $task->isBlockedByPostponed(), 403);
+        }
 
         $task->update([
             'finished_at' => $finished ? $this->now() : null,
@@ -337,6 +350,43 @@ class View extends Component
         unset($this->tasks);
 
         Flux::toast(variant: 'success', text: __('Task canceled.'));
+    }
+
+    public function openPostpone(int $taskId): void
+    {
+        $task = $this->findTask($taskId);
+
+        abort_unless($task->canPostpone(), 403);
+
+        $this->postponeTaskId = $task->getKey();
+        $this->postponeReason = '';
+        $this->showPostpone = true;
+    }
+
+    public function postponeTask(): void
+    {
+        $this->postponeReason = trim($this->postponeReason);
+
+        $this->validate([
+            'postponeReason' => ['required', 'string', 'max:5000'],
+        ], [
+            'postponeReason.required' => __('A postponement reason is required.'),
+        ]);
+
+        $task = $this->findTask((int) $this->postponeTaskId);
+
+        abort_unless($task->canPostpone(), 403);
+
+        $reason = $this->postponeReason;
+
+        $task->update(['postponed_at' => $this->now()]);
+
+        $this->reset('showPostpone', 'postponeTaskId', 'postponeReason');
+        unset($this->tasks, $this->canFinish);
+
+        event(new TaskChanged($this->project->ownerOrganization, Auth::user(), $task, TaskAction::Postponed, reason: $reason));
+
+        Flux::toast(variant: 'success', text: __('Task postponed.'));
     }
 
     public function confirmCancelProject(): void

@@ -13,6 +13,7 @@ enum TaskAction: string
     case Started = 'started';
     case Finished = 'finished';
     case Reopened = 'reopened';
+    case Postponed = 'postponed';
     case AssignedMember = 'assigned_member';
     case AssignedContact = 'assigned_contact';
 

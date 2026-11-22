@@ -35,6 +35,7 @@ class TaskFactory extends Factory
             'started_at' => null,
             'finished_at' => null,
             'canceled_at' => null,
+            'postponed_at' => null,
         ];
     }
 }

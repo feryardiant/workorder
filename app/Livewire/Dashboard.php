@@ -191,7 +191,7 @@ class Dashboard extends Component
     }
 
     /**
-     * Projects due within a week or already overdue.
+     * Projects due within a week, already overdue, or holding a postponed task.
      *
      * @return Collection<int, Project>
      */
@@ -199,15 +199,21 @@ class Dashboard extends Component
     public function projectsNeedingAttention(): Collection
     {
         return $this->projectQuery()
-            ->whereNotNull('mandated_date')
-            ->whereDate('mandated_date', '<=', $this->todayDate(7))
+            ->where(function (Builder $query): void {
+                $query->where(function (Builder $query): void {
+                    $query->whereNotNull('mandated_date')
+                        ->whereDate('mandated_date', '<=', $this->todayDate(7));
+                })->orWhereHas('allTasks', fn (Builder $query): Builder => $query->whereNotNull('postponed_at'));
+            })
             ->whereNull('finished_date')
             ->whereNull('canceled_date')
             ->with('customer')
             ->withCount([
                 'tasks as total_tasks_count',
                 'tasks as finished_tasks_count' => fn (Builder $query): Builder => $query->whereNotNull('finished_at'),
+                'allTasks as postponed_tasks_count' => fn (Builder $query): Builder => $query->whereNotNull('postponed_at'),
             ])
+            ->orderByDesc('postponed_tasks_count')
             ->orderBy('mandated_date')
             ->limit(5)
             ->get();

@@ -50,6 +50,7 @@ test('an audit payload round-trips through its stored array', function (AuditPay
     'project kind changed' => fn (): AuditPayload => new ProjectKindChangedPayload('Case'),
     'cancellation' => fn (): AuditPayload => new CancellationPayload('No longer needed'),
     'task changed' => fn (): AuditPayload => new TaskChangedPayload(TaskAction::AssignedMember, 'Fery', 'Narji'),
+    'task postponed' => fn (): AuditPayload => new TaskChangedPayload(TaskAction::Postponed, reason: 'Waiting for the permit'),
     'attachment changed' => fn (): AuditPayload => new AttachmentChangedPayload(AttachmentAction::Removed, 1, 'deed.pdf'),
 ]);
 

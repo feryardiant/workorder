@@ -14,6 +14,7 @@ final class TaskChangedPayload extends AuditPayload
         public TaskAction $action,
         public ?string $from = null,
         public ?string $to = null,
+        public ?string $reason = null,
     ) {}
 
     public function __toString(): string
@@ -22,6 +23,10 @@ final class TaskChangedPayload extends AuditPayload
             TaskAction::Started => __(':Task started', ['task' => $this->subjectTitle()]),
             TaskAction::Finished => __(':Task finished', ['task' => $this->subjectTitle()]),
             TaskAction::Reopened => __(':Task reopened', ['task' => $this->subjectTitle()]),
+            TaskAction::Postponed => __(':Task postponed: :reason', [
+                'task' => $this->subjectTitle(),
+                'reason' => $this->reason ?? '',
+            ]),
             TaskAction::Updated => __(':Task information updated', ['task' => $this->subjectTitle()]),
             TaskAction::AssignedMember => __(':Task reassigned from :from to :to', [
                 'task' => $this->subjectTitle(),
@@ -45,6 +50,10 @@ final class TaskChangedPayload extends AuditPayload
             $data['to'] = $this->to;
         }
 
+        if ($this->action === TaskAction::Postponed) {
+            $data['reason'] = $this->reason;
+        }
+
         return $data;
     }
 
@@ -52,11 +61,13 @@ final class TaskChangedPayload extends AuditPayload
     {
         $from = $data['from'] ?? null;
         $to = $data['to'] ?? null;
+        $reason = $data['reason'] ?? null;
 
         return new self(
             TaskAction::from((string) $data['action']),
             \is_string($from) ? $from : null,
             \is_string($to) ? $to : null,
+            \is_string($reason) ? $reason : null,
         );
     }
 
