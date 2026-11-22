@@ -428,6 +428,26 @@ it('updates the customer from the edit modal', function (): void {
         ->and($project->customer_type)->toBe($replacement->getMorphClass());
 });
 
+it('keeps a deleted customer when editing the other project fields', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Deleted customer']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $customer = contactIndividual($this->tenant, ['name' => 'Gone Customer']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, $customer);
+
+    $customer->delete();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openEdit')
+        ->set('title', 'Renamed project')
+        ->call('saveProject')
+        ->assertHasNoErrors();
+
+    expect($project->refresh()->title)->toBe('Renamed project')
+        ->and($project->customer_id)->toBe($customer->getKey())
+        ->and($project->customer_type)->toBe($customer->getMorphClass());
+});
+
 it('rejects state changes on finished and canceled records', function (): void {
     /** @var TestCase $this */
     $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Locked states']);

@@ -201,17 +201,21 @@ class View extends Component
             fn (Organization|Person $customer): bool => $customer->getMorphClass().':'.$customer->getKey() === $this->customerRef,
         );
 
-        abort_if($customer === null, 422);
-
-        $this->project->update([
+        $attributes = [
             'title' => $this->title,
-            'customer_id' => $customer->getKey(),
-            'customer_type' => $customer->getMorphClass(),
             'summary' => $this->summary === '' ? null : $this->summary,
             'remark' => $this->remark === '' ? null : $this->remark,
             'mandated_date' => $this->mandatedDate,
             'assignee_id' => $assignee?->getKey(),
-        ]);
+        ];
+
+        // A deleted customer no longer resolves, so keep it while other fields are edited.
+        if ($customer !== null) {
+            $attributes['customer_id'] = $customer->getKey();
+            $attributes['customer_type'] = $customer->getMorphClass();
+        }
+
+        $this->project->update($attributes);
 
         $this->reset('showEdit');
         unset($this->assignees);
