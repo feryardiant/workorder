@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -29,6 +30,7 @@ use Illuminate\Support\Str;
  * @property int $owner_organization_id
  * @property int $kind_id
  * @property int $customer_id
+ * @property string $customer_type
  * @property ?int $assignee_id
  * @property string $slug
  * @property string $code
@@ -42,7 +44,7 @@ use Illuminate\Support\Str;
  * @property ?CarbonImmutable $canceled_date
  * @property-read ProjectStatus $status
  * @property-read ?ProjectKind $kind
- * @property-read Organization $customer
+ * @property-read Organization|Person $customer
  * @property-read Organization $ownerOrganization
  * @property-read ?Person $assignee
  * @property-read Collection<int, Task> $tasks
@@ -54,6 +56,7 @@ use Illuminate\Support\Str;
     'owner_organization_id',
     'kind_id',
     'customer_id',
+    'customer_type',
     'assignee_id',
     'slug',
     'code',
@@ -105,11 +108,11 @@ class Project extends Model
     }
 
     /**
-     * @return BelongsTo<Organization, $this>
+     * @return MorphTo<Model, $this>
      */
-    public function customer(): BelongsTo
+    public function customer(): MorphTo
     {
-        return $this->belongsTo(Organization::class, 'customer_id');
+        return $this->morphTo();
     }
 
     /**

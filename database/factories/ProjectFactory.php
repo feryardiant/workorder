@@ -28,6 +28,7 @@ class ProjectFactory extends Factory
             'uuid' => (string) Str::uuid7(),
             'owner_organization_id' => Organization::factory(),
             'kind_id' => ProjectKind::factory(),
+            'customer_type' => (new Organization)->getMorphClass(),
             'customer_id' => Organization::factory(),
             'assignee_id' => null,
             'code' => $code,

@@ -33,7 +33,7 @@ it('creates a project from the index modal', function (): void {
 
     Livewire::test(Index::class)
         ->set('createKindId', $kind->getKey())
-        ->set('createCustomerId', $customer->getKey())
+        ->set('createCustomerRef', $customer->getMorphClass().':'.$customer->getKey())
         ->set('createAssigneeId', $member?->getKey())
         ->set('createSummary', 'Kickoff')
         ->call('create')
@@ -99,7 +99,7 @@ it('lets members create projects only for themselves', function (): void {
 
     Livewire::test(Index::class)
         ->set('createKindId', $kind->getKey())
-        ->set('createCustomerId', $customer->getKey())
+        ->set('createCustomerRef', $customer->getMorphClass().':'.$customer->getKey())
         ->set('createAssigneeId', $other->person?->getKey())
         ->call('create')
         ->assertHasErrors('createAssigneeId');
@@ -108,12 +108,60 @@ it('lets members create projects only for themselves', function (): void {
 
     Livewire::test(Index::class)
         ->set('createKindId', $kind->getKey())
-        ->set('createCustomerId', $customer->getKey())
+        ->set('createCustomerRef', $customer->getMorphClass().':'.$customer->getKey())
         ->set('createAssigneeId', $member->person?->getKey())
         ->call('create')
         ->assertHasNoErrors();
 
     expect(Project::query()->sole()->assignee_id)->toBe($member->person?->getKey());
+});
+
+it('creates a project for an individual customer', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Theta']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $customer = contactIndividual($this->tenant, ['name' => 'Solo Customer']);
+
+    Livewire::test(Index::class)
+        ->set('createKindId', $kind->getKey())
+        ->set('createCustomerRef', $customer->getMorphClass().':'.$customer->getKey())
+        ->set('createAssigneeId', auth()->user()?->person?->getKey())
+        ->call('create')
+        ->assertHasNoErrors();
+
+    $project = Project::query()->sole();
+
+    expect($project->customer_type)->toBe($customer->getMorphClass())
+        ->and($project->customer_id)->toBe($customer->getKey())
+        ->and($project->customer?->is($customer))->toBeTrue();
+});
+
+it('selects a customer saved from the contact flyout and remounts the select', function (): void {
+    /** @var TestCase $this */
+    $customer = contactIndividual($this->tenant, ['name' => 'Fresh Customer']);
+
+    Livewire::test(Index::class)
+        ->call('refreshCustomers', $customer->getKey(), $customer->getMorphClass())
+        ->assertSet('createCustomerRef', $customer->getMorphClass().':'.$customer->getKey())
+        ->assertSet('customersVersion', 1)
+        ->assertSee('Fresh Customer');
+});
+
+it('filters projects by an individual customer', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Iota']);
+    $individual = contactIndividual($this->tenant, ['name' => 'Person Customer']);
+    $organization = contactOrganization($this->tenant, ['name' => 'Org Customer']);
+
+    app(CreateProject::class)->handle($this->tenant, $kind, $individual, data: ['title' => 'Individual project']);
+    app(CreateProject::class)->handle($this->tenant, $kind, $organization, data: ['title' => 'Organization project']);
+
+    Livewire::test(Index::class)
+        ->set('customerRef', $individual->getMorphClass().':'.$individual->getKey())
+        ->assertSee('Individual project')
+        ->assertDontSee('Organization project')
+        ->assertSeeHtml('data-selected-label="Person Customer"')
+        ->assertSeeHtml('data-selected-label="Org Customer"');
 });
 
 it('archives the selected projects', function (): void {

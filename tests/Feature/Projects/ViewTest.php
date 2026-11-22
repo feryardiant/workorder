@@ -420,11 +420,56 @@ it('updates the customer from the edit modal', function (): void {
 
     Livewire::test(View::class, ['project' => $project->fresh()])
         ->call('openEdit')
-        ->set('customerId', $replacement->getKey())
+        ->set('customerRef', $replacement->getMorphClass().':'.$replacement->getKey())
         ->call('saveProject')
         ->assertHasNoErrors();
 
-    expect($project->refresh()->customer_id)->toBe($replacement->getKey());
+    expect($project->refresh()->customer_id)->toBe($replacement->getKey())
+        ->and($project->customer_type)->toBe($replacement->getMorphClass());
+});
+
+it('keeps a deleted customer when editing the other project fields', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Deleted customer']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $customer = contactIndividual($this->tenant, ['name' => 'Gone Customer']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, $customer);
+
+    $customer->delete();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openEdit')
+        ->set('title', 'Renamed project')
+        ->call('saveProject')
+        ->assertHasNoErrors();
+
+    expect($project->refresh()->title)->toBe('Renamed project')
+        ->and($project->customer_id)->toBe($customer->getKey())
+        ->and($project->customer_type)->toBe($customer->getMorphClass());
+});
+
+it('reports a customer that disappeared before the edit is saved', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Stale customer']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $customer = contactOrganization($this->tenant);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, $customer);
+    $vanished = contactIndividual($this->tenant);
+
+    $component = Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openEdit')
+        ->set('customerRef', $vanished->getMorphClass().':'.$vanished->getKey());
+
+    $vanished->delete();
+
+    $component
+        ->set('title', 'Should not save')
+        ->call('saveProject')
+        ->assertHasErrors('customerRef');
+
+    expect($project->refresh()->title)->not->toBe('Should not save')
+        ->and($project->customer_id)->toBe($customer->getKey())
+        ->and($project->customer_type)->toBe($customer->getMorphClass());
 });
 
 it('rejects state changes on finished and canceled records', function (): void {

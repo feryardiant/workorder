@@ -15,6 +15,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -93,6 +94,12 @@ class Index extends Component
 
         try {
             $deleteContact->handle($organization, $contact->getKey(), actor: Auth::user());
+        } catch (ValidationException $exception) {
+            Flux::toast(variant: 'danger', text: $exception->validator->errors()->first());
+
+            $this->reset('showDeleteModal', 'deletingContactId', 'deletingContactName');
+
+            return;
         } catch (Throwable $exception) {
             report($exception);
 
@@ -129,6 +136,12 @@ class Index extends Component
 
         try {
             $count = $deleteContacts->handleBulk($organization, $ids, Auth::user());
+        } catch (ValidationException $exception) {
+            Flux::toast(variant: 'danger', text: $exception->validator->errors()->first());
+
+            $this->reset('showBatchDeleteModal');
+
+            return;
         } catch (Throwable $exception) {
             report($exception);
 

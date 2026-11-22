@@ -33,7 +33,7 @@ use Livewire\Component;
  * @property-read Collection<int, Person> $assignees
  * @property-read Collection<int, Person> $members
  * @property-read bool $isManager
- * @property-read Collection<int, Organization> $customers
+ * @property-read Collection<int, Organization|Person> $customers
  * @property-read Collection<int, Attachment> $projectAttachments
  * @property-read bool $canFinish
  * @property-read bool $canManage
@@ -57,7 +57,7 @@ class View extends Component
 
     public ?int $assigneeId = null;
 
-    public ?int $customerId = null;
+    public ?string $customerRef = null;
 
     public bool $showTaskInfo = false;
 
@@ -136,14 +136,13 @@ class View extends Component
     }
 
     /**
-     * @return Collection<int, Organization>
+     * @return Collection<int, Organization|Person>
      */
     #[Computed]
     public function customers(): Collection
     {
         return $this->requireOrganization()
-            ->organizationCounterparties(OrganizationRelationshipType::Customer)
-            ->get();
+            ->counterparties(OrganizationRelationshipType::Customer);
     }
 
     /**
@@ -194,22 +193,33 @@ class View extends Component
             'remark' => ['nullable', 'string', 'max:5000'],
             'mandatedDate' => ['nullable', 'date'],
             'assigneeId' => ['nullable', 'integer'],
-            'customerId' => ['required', 'integer'],
+            'customerRef' => ['required', 'string'],
         ]);
 
         $assignee = $this->assigneeId === null ? null : $this->members->firstWhere('id', $this->assigneeId);
-        $customer = $this->customers->firstWhere('id', $this->customerId);
+        $customer = $this->customers->first(
+            fn (Organization|Person $customer): bool => $customer->getMorphClass().':'.$customer->getKey() === $this->customerRef,
+        );
 
-        abort_if($customer === null, 422);
-
-        $this->project->update([
+        $attributes = [
             'title' => $this->title,
-            'customer_id' => $customer->getKey(),
             'summary' => $this->summary === '' ? null : $this->summary,
             'remark' => $this->remark === '' ? null : $this->remark,
             'mandated_date' => $this->mandatedDate,
             'assignee_id' => $assignee?->getKey(),
-        ]);
+        ];
+
+        // A deleted customer no longer resolves, so keep it while other fields are edited.
+        if ($customer !== null) {
+            $attributes['customer_id'] = $customer->getKey();
+            $attributes['customer_type'] = $customer->getMorphClass();
+        } elseif ($this->customerRef !== $this->project->customer_type.':'.$this->project->customer_id) {
+            $this->addError('customerRef', __('The selected customer is no longer available.'));
+
+            return;
+        }
+
+        $this->project->update($attributes);
 
         $this->reset('showEdit');
         unset($this->assignees);
@@ -469,7 +479,7 @@ class View extends Component
 
     private function fillEditForm(): void
     {
-        $this->customerId = $this->project->customer_id;
+        $this->customerRef = $this->project->customer_type.':'.$this->project->customer_id;
         $this->title = $this->project->title;
         $this->summary = (string) $this->project->summary;
         $this->remark = (string) $this->project->remark;

@@ -27,7 +27,7 @@ final class CreateProject
     public function handle(
         Organization $tenant,
         ProjectKind $kind,
-        Organization $customer,
+        Organization|Person $customer,
         ?Person $assignee = null,
         array $data = [],
         ?User $actor = null,
@@ -49,6 +49,7 @@ final class CreateProject
                 'owner_organization_id' => $tenant->getKey(),
                 'kind_id' => $kind->getKey(),
                 'customer_id' => $customer->getKey(),
+                'customer_type' => $customer->getMorphClass(),
                 'assignee_id' => $assignee?->getKey(),
                 'code' => $code,
                 'slug' => Str::slug($code),

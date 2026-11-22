@@ -40,11 +40,13 @@
             @endforeach
         </x-ui.select>
 
-        <x-ui.select wire:model.live="customerId" :aria-label="__('Customer')" :placeholder="__('All customers')" :empty="__('No customers found')" clearable>
-            @foreach ($customers as $customer)
-                <x-ui.select.option value="{{ $customer->id }}" icon="building-office">{{ $customer->name }}</x-ui.select.option>
-            @endforeach
-        </x-ui.select>
+        <div wire:key="customer-filter-{{ $customersVersion }}">
+            <x-ui.select wire:model.live="customerRef" :aria-label="__('Customer')" :placeholder="__('All customers')" :empty="__('No customers found')" clearable>
+                @foreach ($customers as $customer)
+                    <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" :selected-label="$customer->name" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }} <span class="sr-only">({{ $customer instanceof App\Models\Organization ? __('Organization') : __('Individual') }})</span></x-ui.select.option>
+                @endforeach
+            </x-ui.select>
+        </div>
 
         <x-ui.select wire:model.live="status" :aria-label="__('Status')" :placeholder="__('All statuses')" clearable>
             @foreach ($statuses as $case)
@@ -143,8 +145,8 @@
 
                     <flux:table.cell class="w-1/12">
                         <div class="flex items-center gap-2">
-                            <flux:avatar size="xs" :src="$project->customer?->logo_url" :name="$project->customer?->name" />
-                            <span class="truncate">{{ $project->customer?->name }}</span>
+                            <flux:avatar size="xs" :src="$project->customer?->photo_url ?? $project->customer?->logo_url" :name="$project->customer?->name" />
+                            <span class="truncate">{{ $project->customer?->name ?? '—' }}</span>
                         </div>
                     </flux:table.cell>
 
@@ -207,13 +209,15 @@
                     @endforeach
                 </x-ui.select>
 
-                <x-ui.select wire:model="createCustomerId" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
-                    @foreach ($customers as $customer)
-                        <x-ui.select.option value="{{ $customer->id }}" icon="building-office">{{ $customer->name }}</x-ui.select.option>
-                    @endforeach
-                </x-ui.select>
+                <div wire:key="create-customer-{{ $customersVersion }}">
+                    <x-ui.select wire:model="createCustomerRef" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
+                        @foreach ($customers as $customer)
+                            <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" :selected-label="$customer->name" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }} <span class="sr-only">({{ $customer instanceof App\Models\Organization ? __('Organization') : __('Individual') }})</span></x-ui.select.option>
+                        @endforeach
+                    </x-ui.select>
+                </div>
 
-                @if (blank($createCustomerId))
+                @if (blank($createCustomerRef))
                     <flux:button
                         size="sm"
                         variant="subtle"
