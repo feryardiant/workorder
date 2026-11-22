@@ -33,7 +33,7 @@ jobs:
   quality:
     name: Quality Gate
     runs-on: ubuntu-latest
-    if: ${{ needs.prepare.outputs.should-release != '1' }}
+    if: needs.prepare.outputs.should-release != '1'
     needs: [prepare]
     permissions:
       contents: read
