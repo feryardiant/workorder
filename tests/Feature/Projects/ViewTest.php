@@ -139,12 +139,15 @@ it('blocks the tasks after a postponed task until it starts', function (): void 
     $first->update(['started_at' => now()->subHour()]);
 
     Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $third->getKey());
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
         ->call('openPostpone', $second->getKey())
         ->set('postponeReason', 'Waiting for the permit')
         ->call('postponeTask');
 
     Livewire::test(View::class, ['project' => $project->fresh()])
-        ->call('startTask', $third->getKey())
+        ->call('finishTask', $third->getKey())
         ->assertForbidden();
 
     Livewire::test(View::class, ['project' => $project->fresh()])
@@ -154,10 +157,10 @@ it('blocks the tasks after a postponed task until it starts', function (): void 
         ->and($second->postponed_at)->toBeNull();
 
     Livewire::test(View::class, ['project' => $project->fresh()])
-        ->call('startTask', $third->getKey())
+        ->call('finishTask', $third->getKey())
         ->assertHasNoErrors();
 
-    expect($third->refresh()->started_at)->not->toBeNull();
+    expect($third->refresh()->finished_at)->not->toBeNull();
 });
 it('postpones a sub-task and blocks the sub-tasks after it', function (): void {
     /** @var TestCase $this */
@@ -188,6 +191,9 @@ it('postpones a sub-task and blocks the sub-tasks after it', function (): void {
     Livewire::test(View::class, ['project' => $project->fresh()])
         ->call('startTask', $thirdSub->getKey())
         ->assertForbidden();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->assertSee("dispatch('assign-member', { taskId: {$thirdSub->getKey()} })", false);
 
     Livewire::test(View::class, ['project' => $project->fresh()])
         ->call('toggleSubTask', $secondSub->getKey())

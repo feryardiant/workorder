@@ -77,7 +77,7 @@
                                     @endunless
                                 @endif
 
-                                @if ($task->status->isOnGoing())
+                                @if ($task->status->isOnGoing() && ! $blocked)
                                     <flux:tooltip :content="__('Finish task')">
                                         <flux:button size="sm" variant="subtle" color="sky" icon="stop" square wire:click="finishTask({{ $task->id }})" :aria-label="__('Finish task')" />
                                     </flux:tooltip>
@@ -114,21 +114,21 @@
                                     @foreach ($task->subTasks as $subTask)
                                         @php($previousSubTask = $loop->index > 0 ? $task->subTasks[$loop->index - 1] : null)
                                         @php($subBlocked = $blocked || $task->postponed_at !== null || $task->subTasks->take($loop->index)->contains(fn ($earlier): bool => $earlier->postponed_at !== null))
-                                        @php($subDisabled = $disabled || $subTask->status->isCanceled() || $task->status->isFinished() || $subBlocked)
+                                        @php($subDisabled = $disabled || $subTask->status->isCanceled() || $task->status->isFinished())
                                         @php($subLocked = $subDisabled || $subTask->status->isCompleted())
 
                                         <flux:table.row>
-                                            <flux:table.cell class="w-1/12">
+                                            <flux:table.cell class="w-14">
                                                 <flux:checkbox
                                                     :checked="$subTask->status->isFinished()"
-                                                    :disabled="$subDisabled || $subTask->postponed_at !== null"
+                                                    :disabled="$subDisabled || $subBlocked || $subTask->postponed_at !== null"
                                                     wire:click="toggleSubTask({{ $subTask->id }})"
                                                     :aria-label="__('Mark :title as finished', ['title' => $subTask->title])"
                                                     class="m-auto"
                                                 />
                                             </flux:table.cell>
 
-                                            <flux:table.cell class="w-9/12">
+                                            <flux:table.cell class="whitespace-normal break-words">
                                                 <div class="min-w-0 flex-1">
                                                     <div class="flex flex-wrap items-center gap-2">
                                                         <flux:heading size="sm">{{ $subTask->title }}</flux:heading>
@@ -142,10 +142,10 @@
                                                 </div>
                                             </flux:table.cell>
 
-                                            <flux:table.cell class="w-2/12">
+                                            <flux:table.cell class="w-32">
                                                 @unless ($subLocked)
-                                                    <div class="flex items-center justify-end gap-1">
-                                                        @if ($subTask->status->isNotStarted())
+                                                    <div class="flex items-center justify-end gap-0.5">
+                                                        @if (! $subBlocked && $subTask->status->isNotStarted())
                                                             <flux:tooltip :content="__('Start task')">
                                                                 <flux:button size="xs" variant="subtle" color="green" icon="play" square wire:click="startTask({{ $subTask->id }})" :aria-label="__('Start task')" />
                                                             </flux:tooltip>
