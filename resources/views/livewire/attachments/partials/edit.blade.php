@@ -1,4 +1,4 @@
-<x-modal wire:model.self="showModal" :title="$title" width="md:w-4xl max-w-4xl">
+<x-modal wire:model.self="showModal" :title="$title" width="max-w-[min(56rem,calc(100%-2rem))]">
     @if ($attachment !== null)
         <div class="flex flex-col gap-4">
             <flux:input wire:model="title" :label="__('Title')" />
@@ -21,7 +21,7 @@
                 @endif
             </div>
 
-            <div class="flex items-center justify-between">
+            <div class="sticky -bottom-6 -mx-6 -mb-6 flex items-center justify-between gap-4 border-t border-zinc-200 bg-white px-6 pt-4 pb-6 dark:border-white/10 dark:bg-zinc-800">
                 <flux:modal.close>
                     <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
