@@ -43,7 +43,7 @@
         <div wire:key="customer-filter-{{ $customersVersion }}">
             <x-ui.select wire:model.live="customerRef" :aria-label="__('Customer')" :placeholder="__('All customers')" :empty="__('No customers found')" clearable>
                 @foreach ($customers as $customer)
-                    <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }}</x-ui.select.option>
+                    <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }} <span class="sr-only">({{ $customer instanceof App\Models\Organization ? __('Organization') : __('Individual') }})</span></x-ui.select.option>
                 @endforeach
             </x-ui.select>
         </div>
@@ -212,7 +212,7 @@
                 <div wire:key="create-customer-{{ $customersVersion }}">
                     <x-ui.select wire:model="createCustomerRef" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
                         @foreach ($customers as $customer)
-                            <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }}</x-ui.select.option>
+                            <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }} <span class="sr-only">({{ $customer instanceof App\Models\Organization ? __('Organization') : __('Individual') }})</span></x-ui.select.option>
                         @endforeach
                     </x-ui.select>
                 </div>

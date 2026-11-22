@@ -213,6 +213,10 @@ class View extends Component
         if ($customer !== null) {
             $attributes['customer_id'] = $customer->getKey();
             $attributes['customer_type'] = $customer->getMorphClass();
+        } elseif ($this->customerRef !== $this->project->customer_type.':'.$this->project->customer_id) {
+            $this->addError('customerRef', __('The selected customer is no longer available.'));
+
+            return;
         }
 
         $this->project->update($attributes);
