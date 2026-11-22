@@ -3,6 +3,7 @@
     "4-15 lowercase letters and numbers.": "4-15 huruf kecil dan angka.",
     ":actor just changed your role to :role at :app.": ":actor baru saja mengubah peran Anda menjadi :role di :app.",
     ":count unread notifications": ":count notifikasi belum dibaca",
+    ":count postponed": ":count ditunda",
     ":count users deleted successfully.": ":count pengguna berhasil dihapus.",
     "A new verification link has been sent to the email address you provided during registration.": "Tautan verifikasi baru telah dikirim ke alamat email yang Anda berikan saat pendaftaran.",
     "A new verification link has been sent to your email address.": "Tautan verifikasi baru telah dikirim ke alamat email Anda.",

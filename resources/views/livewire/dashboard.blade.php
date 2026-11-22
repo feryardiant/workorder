@@ -96,9 +96,15 @@
                                 {{ $project->finished_tasks_count }}/{{ $project->total_tasks_count }}
                             </flux:text>
 
-                            <flux:badge size="sm" :color="$project->mandated_date?->isBefore(today()) ? 'red' : 'amber'">
-                                {{ $project->mandated_date?->format('Y-m-d') }}
-                            </flux:badge>
+                            @if ($project->postponed_tasks_count > 0)
+                                <flux:badge size="sm" color="amber">{{ __(':count postponed', ['count' => $project->postponed_tasks_count]) }}</flux:badge>
+                            @endif
+
+                            @if ($project->mandated_date !== null)
+                                <flux:badge size="sm" :color="$project->mandated_date->isBefore(today()) ? 'red' : 'amber'">
+                                    {{ $project->mandated_date->format('Y-m-d') }}
+                                </flux:badge>
+                            @endif
                         </div>
                     </div>
                 @empty

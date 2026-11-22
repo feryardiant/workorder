@@ -59,6 +59,24 @@ it('summarises projects and my open tasks', function (): void {
         'title' => 'Finished project',
     ]);
 
+    $postponed = Project::factory()->create([
+        'owner_organization_id' => $organization->getKey(),
+        'kind_id' => $kind->getKey(),
+        'title' => 'Postponed project',
+    ]);
+
+    $postponedParent = Task::factory()->create([
+        'project_id' => $postponed->getKey(),
+        'order' => 1,
+    ]);
+
+    Task::factory()->create([
+        'project_id' => $postponed->getKey(),
+        'parent_id' => $postponedParent->getKey(),
+        'order' => 1,
+        'postponed_at' => now()->subHour(),
+    ]);
+
     $task = Task::factory()->create([
         'project_id' => $ongoing->getKey(),
         'assignee_id' => $owner->person?->getKey(),
@@ -99,10 +117,14 @@ it('summarises projects and my open tasks', function (): void {
         ->and($component->instance()->onGoingProjects)->toBe(1)
         ->and($component->instance()->overdueProjects)->toBe(1)
         ->and($component->instance()->dueThisWeek)->toBe(2)
+        ->and($component->instance()->projectsNeedingAttention->first()->is($postponed))->toBeTrue()
+        ->and($component->instance()->projectsNeedingAttention->pluck('id'))->toContain($postponed->getKey())
         ->and($component->instance()->myTasks)->toHaveCount(1);
 
     $component
         ->assertSee('Overdue project')
+        ->assertSee('Postponed project')
+        ->assertSee(__(':count postponed', ['count' => 1]))
         ->assertSee($task->title)
         ->assertSee(__('Projects needing attention'))
         ->assertSee(__('My tasks'));
