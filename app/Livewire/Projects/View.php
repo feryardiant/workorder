@@ -282,6 +282,7 @@ class View extends Component
         abort_if($task->isDisabled() || $task->isCanceled(), 403);
         abort_unless($task->status->isOnGoing(), 403);
         abort_if($task->isBlockedByPostponed(), 403);
+        abort_if($task->hasPostponedSubTask(), 403);
 
         $task->update(['finished_at' => $this->now()]);
 

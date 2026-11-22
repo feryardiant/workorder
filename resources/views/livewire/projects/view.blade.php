@@ -77,13 +77,13 @@
                                     @endunless
                                 @endif
 
-                                @if ($task->status->isOnGoing() && ! $blocked)
+                                @if ($task->status->isOnGoing() && ! $blocked && ! $task->hasPostponedSubTask())
                                     <flux:tooltip :content="__('Finish task')">
                                         <flux:button size="sm" variant="subtle" color="sky" icon="stop" square wire:click="finishTask({{ $task->id }})" :aria-label="__('Finish task')" />
                                     </flux:tooltip>
                                 @endif
 
-                                @if (! $blocked && $task->postponed_at === null && $task->status->isNotStarted() && $previous?->started_at !== null)
+                                @if (! $blocked && $task->postponed_at === null && $task->status->isNotStarted() && $previous?->hasStarted() === true)
                                     <flux:tooltip :content="__('Postpone task')">
                                         <flux:button size="sm" variant="subtle" color="amber" icon="clock" square wire:click="openPostpone({{ $task->id }})" :aria-label="__('Postpone task')" />
                                     </flux:tooltip>
@@ -112,7 +112,6 @@
                             <flux:table bleed>
                                 <flux:table.rows>
                                     @foreach ($task->subTasks as $subTask)
-                                        @php($previousSubTask = $loop->index > 0 ? $task->subTasks[$loop->index - 1] : null)
                                         @php($subBlocked = $blocked || $task->postponed_at !== null || $task->subTasks->take($loop->index)->contains(fn ($earlier): bool => $earlier->postponed_at !== null))
                                         @php($subDisabled = $disabled || $subTask->status->isCanceled() || $task->status->isFinished())
                                         @php($subLocked = $subDisabled || $subTask->status->isCompleted())
@@ -151,7 +150,7 @@
                                                             </flux:tooltip>
                                                         @endif
 
-                                                        @if (! $subBlocked && $subTask->postponed_at === null && $subTask->status->isNotStarted() && $previousSubTask?->started_at !== null)
+                                                        @if (! $subBlocked && $subTask->postponed_at === null && $subTask->status->isNotStarted() && $task->hasStarted() === true)
                                                             <flux:tooltip :content="__('Postpone task')">
                                                                 <flux:button size="xs" variant="subtle" color="amber" icon="clock" square wire:click="openPostpone({{ $subTask->id }})" :aria-label="__('Postpone task')" />
                                                             </flux:tooltip>

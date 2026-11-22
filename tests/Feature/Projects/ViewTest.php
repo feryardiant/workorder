@@ -171,7 +171,6 @@ it('postpones a sub-task and blocks the sub-tasks after it', function (): void {
     ProjectKindTask::factory()->subTaskOf($parent)->create(['position' => 3, 'title' => 'Third sub']);
     $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
     $task = $project->tasks->first();
-    $firstSub = $task->subTasks->get(0);
     $secondSub = $task->subTasks->get(1);
     $thirdSub = $task->subTasks->get(2);
 
@@ -180,7 +179,7 @@ it('postpones a sub-task and blocks the sub-tasks after it', function (): void {
         ->assertForbidden();
 
     Livewire::test(View::class, ['project' => $project->fresh()])
-        ->call('startTask', $firstSub->getKey());
+        ->call('startTask', $task->getKey());
 
     Livewire::test(View::class, ['project' => $project->fresh()])
         ->call('openPostpone', $secondSub->getKey())
@@ -208,6 +207,72 @@ it('postpones a sub-task and blocks the sub-tasks after it', function (): void {
     expect($secondSub->refresh()->started_at)->not->toBeNull()
         ->and($secondSub->postponed_at)->toBeNull()
         ->and($thirdSub->refresh()->started_at)->not->toBeNull();
+});
+it('offers postponement once the parent task starts through finishing a sub-task', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Sub finished']);
+    $parent = ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'Parent']);
+    ProjectKindTask::factory()->subTaskOf($parent)->create(['position' => 1, 'title' => 'First sub']);
+    ProjectKindTask::factory()->subTaskOf($parent)->create(['position' => 2, 'title' => 'Second sub']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $task = $project->tasks->first();
+    $firstSub = $task->subTasks->get(0);
+    $secondSub = $task->subTasks->get(1);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('toggleSubTask', $firstSub->getKey());
+
+    expect($firstSub->refresh()->started_at)->toBeNull()
+        ->and($firstSub->finished_at)->not->toBeNull();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $secondSub->getKey())
+        ->set('postponeReason', 'Waiting for the vendor')
+        ->call('postponeTask')
+        ->assertHasNoErrors();
+
+    expect($secondSub->refresh()->postponed_at)->not->toBeNull();
+});
+it('blocks finishing the parent task while a sub-task is postponed', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Parent blocked']);
+    $parent = ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'Parent']);
+    ProjectKindTask::factory()->subTaskOf($parent)->create(['position' => 1, 'title' => 'Only sub']);
+    ProjectKindTask::factory()->subTaskOf($parent)->create(['position' => 2, 'title' => 'Other sub']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $task = $project->tasks->first();
+    $subTask = $task->subTasks->first();
+    $otherSub = $task->subTasks->get(1);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $task->getKey());
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $subTask->getKey())
+        ->set('postponeReason', 'Waiting for the vendor')
+        ->call('postponeTask')
+        ->assertHasNoErrors();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('finishTask', $task->getKey())
+        ->assertForbidden();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->assertDontSee(__('Finish task'));
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $subTask->getKey());
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('finishTask', $task->getKey())
+        ->assertHasNoErrors();
+
+    expect($task->refresh()->finished_at)->not->toBeNull()
+        ->and($subTask->refresh()->postponed_at)->toBeNull();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $otherSub->getKey())
+        ->assertForbidden();
 });
 it('starts the project when a task starts on a not started or scheduled project', function (): void {
     /** @var TestCase $this */

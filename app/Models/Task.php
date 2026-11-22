@@ -167,14 +167,37 @@ class Task extends Model
     }
 
     /**
+     * Determine whether the task has started or already finished.
+     */
+    public function hasStarted(): bool
+    {
+        return $this->started_at !== null || $this->finished_at !== null;
+    }
+
+    /**
+     * Determine whether any sub-task is postponed.
+     */
+    public function hasPostponedSubTask(): bool
+    {
+        return $this->subTasks->contains(fn (self $subTask): bool => $subTask->postponed_at !== null);
+    }
+
+    /**
      * Determine whether the task can be postponed.
      */
     public function canPostpone(): bool
     {
-        return ! $this->isDisabled()
-            && $this->status->isNotStarted()
-            && ! $this->isBlockedByPostponed()
-            && $this->previousSibling()?->started_at !== null;
+        if ($this->isDisabled() || ! $this->status->isNotStarted() || $this->isBlockedByPostponed()) {
+            return false;
+        }
+
+        if ($this->isSubTask()) {
+            $parent = $this->parent;
+
+            return $parent !== null && $parent->hasStarted() && ! $parent->status->isFinished();
+        }
+
+        return $this->previousSibling()?->hasStarted() === true;
     }
 
     /**
