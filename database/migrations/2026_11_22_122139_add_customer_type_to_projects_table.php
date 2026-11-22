@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\Organization;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -27,6 +28,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::table('projects')->where('customer_type', '!=', Organization::class)->exists()) {
+            throw new RuntimeException(
+                'Cannot roll back while projects have customers that are not organizations.',
+            );
+        }
+
         Schema::table('projects', function (Blueprint $table) {
             $table->dropIndex(['customer_type', 'customer_id']);
             $table->dropColumn('customer_type');

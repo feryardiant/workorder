@@ -108,6 +108,29 @@ test('the member view lists projects assigned to the member', function () {
         ->assertDontSee('Unassigned Member Project');
 });
 
+test('the member project list tolerates a deleted customer', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Owner);
+
+    $member = User::factory()->asMemberOf($organization)->create();
+    $customer = contactIndividual($organization, ['name' => 'Deleted Customer']);
+
+    Project::factory()->create([
+        'owner_organization_id' => $organization->getKey(),
+        'assignee_id' => $member->person->getKey(),
+        'customer_id' => $customer->getKey(),
+        'customer_type' => $customer->getMorphClass(),
+        'title' => 'Orphaned Customer Project',
+    ]);
+
+    $customer->delete();
+
+    get(route('members.show', $member->person))
+        ->assertOk()
+        ->assertSee('Orphaned Customer Project');
+});
+
 test('the member project list is paginated', function () {
     $organization = Organization::factory()->create();
 
