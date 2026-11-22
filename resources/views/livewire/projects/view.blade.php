@@ -305,7 +305,7 @@
 
             <x-ui.select wire:model="customerRef" :label="__('Customer')" :placeholder="__('Choose a customer...')" :empty="__('No customers found')">
                 @foreach ($customers as $customer)
-                    <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }} <span class="sr-only">({{ $customer instanceof App\Models\Organization ? __('Organization') : __('Individual') }})</span></x-ui.select.option>
+                    <x-ui.select.option value="{{ $customer->getMorphClass() }}:{{ $customer->getKey() }}" :selected-label="$customer->name" icon="{{ $customer instanceof App\Models\Organization ? 'building-office' : 'user' }}">{{ $customer->name }} <span class="sr-only">({{ $customer instanceof App\Models\Organization ? __('Organization') : __('Individual') }})</span></x-ui.select.option>
                 @endforeach
             </x-ui.select>
                 <flux:textarea wire:model="summary" :label="__('Summary')" rows="3" />

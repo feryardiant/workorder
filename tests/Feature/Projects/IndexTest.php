@@ -159,7 +159,9 @@ it('filters projects by an individual customer', function (): void {
     Livewire::test(Index::class)
         ->set('customerRef', $individual->getMorphClass().':'.$individual->getKey())
         ->assertSee('Individual project')
-        ->assertDontSee('Organization project');
+        ->assertDontSee('Organization project')
+        ->assertSeeHtml('data-selected-label="Person Customer"')
+        ->assertSeeHtml('data-selected-label="Org Customer"');
 });
 
 it('archives the selected projects', function (): void {
