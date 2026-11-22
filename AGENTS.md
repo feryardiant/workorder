@@ -16,38 +16,60 @@ Laravel 13 / PHP 8.4 multi-tenant CRM for organizations, people/contacts, member
 | Frontend lint / format | `npm run lint` / `npm run format` (Vite+ `vp check`, type-aware) |
 | Frontend unit tests / build | `npm test` (`vp test run`) / `npm run build` |
 
-## Environment and setup
+- Before running tests outside `composer test`, run `php artisan config:clear`. A cached `bootstrap/cache/config.php` freezes `APP_ENV`, so `.env.testing` is skipped and `RefreshDatabase` wipes the development database. `composer test` already clears it.
+- `.env` and `.env.testing` are gitignored; `.env.testing` sets `DB_DATABASE=testing` and `APP_URL=http://localhost:8080`. `scripts/docker/init-database.sql` already creates the `testing` database on the first `docker compose up` (fresh `pgsql-data` volume), but the env file is not: copy `.env` to `.env.testing` and set `DB_DATABASE=testing` before running any test. Without it, tests use the `.env` connection and `RefreshDatabase` drops the development database.
+- Browser tests need built assets and Chromium: `npm run build`, then once per clone `vpx playwright install chromium`. CI installs only the headless shell (`--only-shell`); install the full browser locally for headed debugging.
+- Use npm: `package-lock.json` is committed (pnpm/yarn lockfiles are ignored). Versions come from `mise.toml` (PHP 8.4, Node 24).
+- Lint, format, and staged-file settings live in `vite.config.ts`; `npm run *` delegates to Vite+ (`vp`). Commitlint is configured in `package.json`; there are no ESLint/Prettier config files.
+- Pint enforces `declare(strict_types=1)`, `native_function_invocation`, and FQCN imports. Add strict types to new PHP files and let Pint fix the rest.
+- `php artisan db:seed` only seeds when `users` is empty. Locally/testing it creates `owner`, `admin`, and `member1..3` (password `password`); `DemoSeeder` adds demo tenants only in `local`. Non-local seeding creates the `setup.initial_email` placeholder used by `/setup`.
+- Log in with the username (`handle`) `owner`, `admin`, or `member1..3`, never the email; `owner@example.com` and the rest are mail addresses only. Fortify's username field is `handle` (`config/fortify.php`), and browser sign-in fills that field (`tests/Browser/AuthTest.php`).
 
-- No `.env.testing` is committed and it may be absent. Without it, tests use the `.env` database and `RefreshDatabase` wipes it. Docker's Postgres init creates a `testing` database; create `.env.testing` with `DB_DATABASE=testing` before running tests locally.
-- `composer test` clears cached config first. Before a raw `php artisan test` or `vendor/bin/pest`, run `php artisan config:clear`; a cached `bootstrap/cache/config.php` keeps `APP_ENV` and skips the testing env.
-- Start `pgsql` before migrations or tests. `rustfs` is needed for uploads because the default disk is S3; `mailpit` catches local mail. The `app` service auto-migrates and seeds, and `rustfs-init` creates the bucket.
-- Browser tests need built assets (`npm run build`) and Chromium (`vpx playwright install chromium`; CI installs only `--only-shell`). Run `php artisan optimize:clear` if Livewire assets 404 from a stale cache.
-- A fresh non-local install redirects every request to `/setup` until the seeded `config('setup.initial_email')` user creates the root tenant. Local and testing skip the setup flow.
-- Versions come from `mise.toml` (PHP 8.4, Node 24). Use npm; `package-lock.json` is committed. Git hooks in `.vite-hooks/` run `vp staged` and commitlint.
+## Worktrees
+
+Zed creates linked worktrees under `../_.Worktrees/{project}/{name}/{project}` and runs `scripts/create-worktree.sh` through the `create_worktree` hook in `.zed/tasks.json`. The script gives each worktree its own runtime identity so an agent can preview and test without touching the main checkout:
+
+- `.env`, `.env.testing`, and `boost.json` are copied once; `.agents/{plans,specs,skills}` are symlinked to the main checkout.
+- `.env` gets `APP_PORT`/`SERVER_PORT` (81xx), `DEV_PORT` (52xx), `APP_URL`, `SESSION_COOKIE`, and `DB_DATABASE`; `.env.testing` gets its own `DB_DATABASE`. `php artisan dev` serves on `APP_URL`.
+- The dev database is `wt_<worktree>-dev` and tests use `wt_<worktree>-test`, both created in the main compose `pgsql` service. They are migrated on setup (dev is seeded), so migrations and tests never touch the main or `testing` database.
+- `composer install` and `npm install` run on every setup (idempotent, so a re-run repairs an interrupted one), and assets are built, so `composer test` runs immediately.
+- Re-running `bash scripts/create-worktree.sh` with the Zed variables repairs an interrupted setup and keeps the assigned ports.
+
+Never run `docker compose` from a worktree: the project name is pinned, so it would reconfigure the main stack. The main stack must be running (`docker compose up -d pgsql mailpit rustfs`) because worktrees share it through `127.0.0.1`.
 
 ## Architecture
 
-- `App\Models\Entity` is the base for `Person` and `Organization`: soft-deleted, route-keyed by `uuid`, with `owner_organization_id` for the tenant that owns the profile. `User` has one `Person` and no role column.
-- The current workspace is a session value (`CurrentOrganization::SESSION_KEY`) resolved by `App\Support\CurrentOrganization`. Livewire pages use `HasCurrentOrganization` for `currentOrganization()`, `isOwner` / `isManager`, `requireOrganization()`, and authorization helpers. Scope tenant queries through those; a user can belong to many organizations.
-- Membership is an `organization_relationships` row (`type=member`) with a `role` (Owner / Admin / Member) and an optional date window. `OrganizationRelationshipPeriod` plus `RelationshipTimeline` keep the history; use the existing Actions instead of updating the pivot directly. `Organization::activeOwnerCount()` protects the last active owner.
-- Organizations form a tenant tree: root tenant (`is_tenant`, `root_organization_id = null`), subsidiaries, and external counterparties (customer / supplier / vendor). Contacts are `OrganizationRelationship` rows, not separate entities. `Person` / `Organization` profiles can be shared across tenants and are only deleted when not shared (`OrganizationRelationship::canDeleteEntityFor`).
-- Authorization: contact abilities live in `AuthorizesContacts` (used by `PersonPolicy` / `OrganizationPolicy` via `Gate`); membership and org-settings checks use the `HasCurrentOrganization` helpers. Owner cannot be granted by a normal role change — only an accepted ownership transfer; an admin leaving needs owner approval.
-- Ownership transfers and admin leave requests are `ApprovalRequest`s with a 7-day expiry and one pending request per organization. `ApprovalRequestLinkController` serves signed email links; actions are in `app/Actions/Approvals`.
-- Domain events extend `AuditableEvent`; the queued `RecordAuditLog` listener writes `audit_logs`, and `php artisan app:audit-prune` prunes them. Notifications are queued and localized.
-- Pennant feature flags are scoped per organization. Wrappers live in `app/Support/Feature/*`; deletion flags default to true in `AppServiceProvider`, and managers toggle them at `/org-settings/features`. Public registration is also a root-tenant flag: the Fortify routes exist but return 404 unless enabled; enabling lets a visitor create a customer tenant via `ProvisionPublicTenant`.
-- Fortify handles password reset, email verification, 2FA, and gated registration. Auth screens are Blade under `resources/views/livewire/auth/`, configured in `FortifyServiceProvider`.
-- Notification polling: `NotificationPollerController` returns the newest unread notification plus pending IDs tracked in the session; `ack` clears them. The inbox is `App\Livewire\Notifications\Index`.
-- UI: class-based Livewire components live in `app/Livewire/**` with views in `resources/views/livewire/**`, routed with `Route::livewire`. The first-party kit is `app/Livewire/Ui/**` plus `resources/views/components/ui/**`, previewed at `/ui` in local/testing. Alpine factories are registered from `resources/js/ui` via `app.ts`; pure date/time/listbox helpers live in `resources/js/util` with colocated Vitest tests.
-- Addresses use `creasi/laravel-nusa` through its bundled SQLite `nusa` connection, so there is no seed step. The `validAddress()` test helper builds a valid province → regency → district → village chain.
-- Uploads use S3 by default. The browser never sees the pre-signed URL; `/uploads/{path}` streams private objects. Tests use `Storage::fake()`.
+- `routes/web.php` is the whole surface: `/setup`; `/` → `/dashboard`; `auth` + `verified` for dashboard, members, contacts, `org-settings/*`, and notifications; `auth` only for profile and stored uploads; preferences plus settings organizations/security also require `verified`, and the last two require `password.confirm`. `routes/ui` registers the component gallery only in `local`/`testing`.
+- Tenancy: an `Organization` is both a tenant and a contact. `is_tenant` + `root_organization_id` mark tenants (one root tenant, enforced by a PostgreSQL partial unique index); `owner_organization_id` marks the tenant that owns a row. The active workspace is `App\Support\CurrentOrganization`, stored in the session; Livewire components use `HasCurrentOrganization::currentOrganization()` and must scope queries through it.
+- Domain model: `Entity` is the base for `Organization` and `Person` (UUID route key, soft deletes, `owner_organization_id`). `OrganizationRelationship` is the pivot for every relationship: Member/Subsidiary are internal, Customer/Supplier/Vendor are external contacts. Membership role lives on the `member` pivot. Actions that change these relationships use `RelationshipTimeline` to open/close `organization_relationship_periods`.
+- Authorization: `App\Enums\Role` is int-backed (`Owner=0`, `Admin=1`, `Member=2`). Livewire uses the `HasCurrentOrganization` helpers (`isOwner`, `isManager`, `authorizeManager`, `authorizeOwner`, `authorizeTarget`); contact abilities are in `OrganizationPolicy`/`PersonPolicy` through `AuthorizesContacts`. Deletion is also gated by Pennant features. A single owner per organization is enforced by `activeOwnerCount()` and a partial index, not just convention.
+- Approvals: ownership transfer and an admin's self-leave are two-step `ApprovalRequest`s (7-day expiry, one pending per organization) handled by `App\Actions\Approvals\*`; signed email links hit `ApprovalRequestLinkController` and open `settings/organizations?approval=...`.
+- Audit: audited events extend `App\Events\AuditableEvent`; `AppServiceProvider` maps the events to the queued `RecordAuditLog` listener. Add every new auditable event to that list. `app:audit-prune --keep=30 [--dry-run]` trims history.
+- Feature flags: per-organization Pennant flags live in `App\Support\Feature\*` and are toggled on `org-settings/features`. `ContactDeletion` and `MemberDeletion` default to true (defined in `AppServiceProvider`); the others default to false.
+- Auth: Fortify's username is `handle` (not email) and the home path is `/dashboard`; enabled features are password reset, registration, email verification, and 2FA. Registration is real but `EnsureRegistrationEnabled` returns 404 for the register routes unless the root tenant enables the `registration` flag; `ProvisionPublicTenant` turns a public registration into a sub-tenant owned by that person, not a member of the root tenant.
+- Invites and setup: adding a member with an email sends `VerifyEmailForNewUser`; the signed link verifies the address and redirects to password reset so the invitee sets a password. Fresh non-local installs redirect to `/setup` while the root tenant is missing and the seeded placeholder user exists; `ProvisionTenant` converts that user into the root owner (local/testing skip setup).
+- Notifications: the inbox is `App\Livewire\Notifications\Index`. `NotificationPollerController` returns the newest unread notification plus a pending list, tracks seen/pending IDs in the session, and `ack` clears them.
+- UI: Livewire 4 components are class-based (`app/Livewire/**` + `resources/views/livewire/**`), routed by class via `Route::livewire()`. Shared Blade components are under `resources/views/components/{ui,page,...}`; the custom UI kit also lives in `app/Livewire/Ui` and `resources/js/ui`, with the local-only `/ui` gallery. Layouts are in `resources/views/layouts/`; local Flux overrides are in `resources/views/flux/`.
+- `User` uses Laravel 13 attributes (`#[Fillable]`, `#[Hidden]`, `#[RouteKey('handle')]`); update the attributes when adding fields. `resources/js/app.ts` starts the notification poller and registers the Alpine UI kit; styles are in `resources/css/app.css` (Tailwind 4 `@theme` plus the Flux import).
 
-## Testing
+## Database and tests
 
-- Pick the lowest layer that proves the behaviour: colocated Vitest for pure JS helpers, `tests/Unit/View/Ui` with `$this->blade()` for Blade markup, `tests/Feature/Ui` with `Livewire::test()` for rendering, and `tests/Browser` only for interaction, Alpine reactivity, computed layout/touch sizes, accessibility, popovers, and uploads.
-- Feature and Browser files opt into `RefreshDatabase`; Unit files do so only when they touch the database.
-- Reuse the helpers in `tests/Pest.php`: `actingAsMember()`, `browserMember()`, `contactOrganization()`, `contactIndividual()`, `validAddress()`. Browser tests share the `browserMember()` organization; call `assertNoBackendErrors()` after Livewire round-trips so a hidden 500 does not pass.
-- Add a feature test for behaviour changes instead of a script or tinker snippet. Browser tests are for critical end-to-end paths (auth, main flows, accessibility, mobile usability).
-- `composer test` does not run Vitest. Run `vp test run` separately. CI runs `vp check`, `vp test`, `vp build`, Pint, PHPStan, then `php artisan test` against PostgreSQL 18.
+- CI (`.github/workflows/tests.yml`) runs `vp check`, `vp test`, `vp build`, then Pint, PHPStan, and `php artisan test` against PostgreSQL 18 with headless Chromium. Tests must keep portability in mind: framework tables (`sessions`, `cache`, `jobs`) live in the separate `system` schema, and `create_system_schema` is PostgreSQL-only.
+- Migrations use PostgreSQL partial indexes (`organizations_root_tenant_unique`, `org_relationship_*_unique`) for the single root tenant, single owner, and single subsidiary relation. Don't drop those guards when changing the schema.
+- `phpunit.xml` deliberately leaves DB env vars unset, so tests use `.env.testing` (or `.env`). Most Feature/Browser tests and database-touching Unit tests opt into `RefreshDatabase` with `uses(RefreshDatabase::class)`; a local run wipes that database, so never point tests at data you need.
+- Fortify feature tests use `$this->skipUnlessFortifyHas(...)` from `tests/TestCase.php` instead of asserting on disabled features.
+- `tests/Pest.php` has the shared fixtures: `actingAsMember`, `contactOrganization`, `contactIndividual`, `browserMember`, `validAddress`, and `assertNoBackendErrors`. Browser tests live in `tests/Browser` (Pest Browser + Playwright) and run inside `composer test`; sign in with `actingAs($user)` from `Pest\Laravel` and open pages with `visit()`. Run `php artisan optimize:clear` when Livewire assets 404 on a stale cache.
+- Pick the lowest test layer that proves the behavior:
+  - pure JS helpers → a colocated Vitest file (`vite-plus/test`, no DOM), for example `resources/js/util/date.test.ts`;
+  - Blade markup and server-rendered attributes → `tests/Unit/View/Ui` with `$this->blade()`;
+  - Livewire rendering → `tests/Feature/Ui` with `Livewire::test()`;
+  - `tests/Browser` only for interaction, Alpine reactivity, computed layout/touch sizes, accessibility audits, popovers, and uploads.
+- `composer test` does not run Vitest; run `vp test run` separately. `tests/InitRepoTest.php` is a standalone spec for `scripts/init-repo.php` and is outside the normal suites.
+- Add a feature test for behavior changes instead of writing a verification script or tinker snippet; reserve browser tests for critical end-to-end paths.
+
+## Boost MCP
+
+- `opencode.json` and `.zed/settings.json` start `php artisan boost:mcp`. Prefer Boost tools over shell or manual guesses: `search-docs` for Laravel/Livewire/Flux APIs, `database-query` for read-only SQL, `database-schema` before schema changes, `browser-logs` for frontend errors, and `get-absolute-url` before sharing a URL.
 
 ## Localization
 
@@ -72,8 +94,9 @@ summary: One or two sentences a reviewer can scan.
 ## Conventions
 
 - Create every new file under `app/` or `database/` with the matching `php artisan make:*` command, including `make:class` when no specific generator exists; do not create these files by hand.
-- Before non-trivial work, check `.agents/skills/` and load the matching skill; the directory is gitignored and may be absent.
-- Laravel Boost MCP is configured in `opencode.json`. Prefer `search-docs` for framework/package APIs, `database-query` / `database-schema` for read-only SQL, and `browser-logs` for frontend errors.
-- New PHP files need `declare(strict_types=1)`; Pint also enforces native function invocation and FQCN imports. Models use Laravel 13 attributes (`#[Fillable]`, `#[Hidden]`, `#[RouteKey]`) instead of properties.
-- Do not add dependencies without approval. Only create documentation files when explicitly requested.
-- If a frontend change does not appear or Vite reports a missing manifest entry, run `npm run build` (or start `composer run dev`).
+- Before starting any task, check `.agents/skills/` and read the skill whose description matches the work. That directory is gitignored, so it may be absent; never assume this file names every available skill. When present, `.agents/specs` and `.agents/plans` hold the design notes for entities, tenancy, contacts, and UI.
+- Git hooks in `.vite-hooks/` run `vp staged` before commits (auto-formats staged files) and commitlint on the message; use Conventional Commits.
+- Clickable controls use `pointer` cursors and popover containers use `default` (base rules in `resources/css/app.css`). Put touch-only affordances behind `[@media(hover:none)]`; `->on()->mobile()` emulates `hover: none` and `pointer: coarse`.
+- Do not add dependencies without approval.
+- Only create documentation files when explicitly requested.
+- If a frontend change does not appear or Vite reports a missing manifest entry, run `npm run build` (or start `npm run dev` / `composer run dev`).
