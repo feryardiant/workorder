@@ -8,6 +8,7 @@ use App\Enums\Role;
 use App\Livewire\Projects\Index;
 use App\Livewire\Projects\View;
 use App\Models\Attachment;
+use App\Models\AuditLog;
 use App\Models\Organization;
 use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
@@ -81,6 +82,126 @@ it('finishes a started task', function (): void {
         ->assertHasNoErrors();
 
     expect($task->refresh()->finished_at)->not->toBeNull();
+});
+it('postpones a task only after the previous one starts and records the reason', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Postpone']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'First']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 2, 'title' => 'Second']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $first = $project->tasks->first();
+    $second = $project->tasks->last();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $second->getKey())
+        ->assertForbidden();
+
+    $first->update(['started_at' => now()->subHour()]);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $second->getKey())
+        ->assertSet('showPostpone', true)
+        ->set('postponeReason', '   ')
+        ->call('postponeTask')
+        ->assertHasErrors('postponeReason');
+
+    expect($second->refresh()->postponed_at)->toBeNull();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $second->getKey())
+        ->set('postponeReason', 'Waiting for the permit')
+        ->call('postponeTask')
+        ->assertHasNoErrors();
+
+    $log = AuditLog::query()
+        ->where('subject_type', $second->getMorphClass())
+        ->where('subject_id', $second->getKey())
+        ->latest('id')
+        ->first();
+
+    expect($second->refresh()->postponed_at)->not->toBeNull()
+        ->and((string) $log?->changes)->toBe(__(':Task postponed: :reason', [
+            'task' => $second->title,
+            'reason' => 'Waiting for the permit',
+        ]));
+});
+it('blocks the tasks after a postponed task until it starts', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Blocked']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'First']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 2, 'title' => 'Second']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 3, 'title' => 'Third']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $first = $project->tasks->get(0);
+    $second = $project->tasks->get(1);
+    $third = $project->tasks->get(2);
+
+    $first->update(['started_at' => now()->subHour()]);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $second->getKey())
+        ->set('postponeReason', 'Waiting for the permit')
+        ->call('postponeTask');
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $third->getKey())
+        ->assertForbidden();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $second->getKey());
+
+    expect($second->refresh()->started_at)->not->toBeNull()
+        ->and($second->postponed_at)->toBeNull();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $third->getKey())
+        ->assertHasNoErrors();
+
+    expect($third->refresh()->started_at)->not->toBeNull();
+});
+it('postpones a sub-task and blocks the sub-tasks after it', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Sub blocked']);
+    $parent = ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1, 'title' => 'Parent']);
+    ProjectKindTask::factory()->subTaskOf($parent)->create(['position' => 1, 'title' => 'First sub']);
+    ProjectKindTask::factory()->subTaskOf($parent)->create(['position' => 2, 'title' => 'Second sub']);
+    ProjectKindTask::factory()->subTaskOf($parent)->create(['position' => 3, 'title' => 'Third sub']);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $task = $project->tasks->first();
+    $firstSub = $task->subTasks->get(0);
+    $secondSub = $task->subTasks->get(1);
+    $thirdSub = $task->subTasks->get(2);
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $secondSub->getKey())
+        ->assertForbidden();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $firstSub->getKey());
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('openPostpone', $secondSub->getKey())
+        ->set('postponeReason', 'Waiting for the vendor')
+        ->call('postponeTask')
+        ->assertHasNoErrors();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $thirdSub->getKey())
+        ->assertForbidden();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('toggleSubTask', $secondSub->getKey())
+        ->assertForbidden();
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $secondSub->getKey());
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('startTask', $thirdSub->getKey());
+
+    expect($secondSub->refresh()->started_at)->not->toBeNull()
+        ->and($secondSub->postponed_at)->toBeNull()
+        ->and($thirdSub->refresh()->started_at)->not->toBeNull();
 });
 it('starts the project when a task starts on a not started or scheduled project', function (): void {
     /** @var TestCase $this */

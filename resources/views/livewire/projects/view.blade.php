@@ -41,6 +41,8 @@
             @foreach ($tasks as $task)
                 @php($disabled = $task->isDisabled() || $task->status->isCanceled())
                 @php($locked = $disabled || $task->status->isCompleted())
+                @php($previous = $loop->index > 0 ? $tasks[$loop->index - 1] : null)
+                @php($blocked = $tasks->take($loop->index)->contains(fn ($earlier): bool => $earlier->postponed_at !== null))
 
                 <flux:card variant="muted" body="divided" id="task-{{ $task->id }}" wire:key="task-{{ $task->id }}">
                     {{-- flex items-start justify-between gap-3 --}}
@@ -53,6 +55,8 @@
                                     <flux:badge size="sm" :color="$task->status->color()">{{ __('Canceled') }}</flux:badge>
                                 @elseif ($disabled)
                                     <flux:badge size="sm" color="zinc">{{ __('Disabled') }}</flux:badge>
+                                @elseif ($task->postponed_at !== null)
+                                    <flux:badge size="sm" color="amber">{{ __('Postponed') }}</flux:badge>
                                 @endif
                             </div>
                             @if (filled($task->summary))
@@ -66,11 +70,23 @@
                         <flux:card.actions>
                             @unless ($locked)
                                 @if ($task->status->isNotStarted())
-                                    <flux:button size="sm" variant="subtle" icon="play" wire:click="startTask({{ $task->id }})">{{ __('Start task') }}</flux:button>
+                                    @unless ($blocked)
+                                        <flux:tooltip :content="__('Start task')">
+                                            <flux:button size="sm" variant="subtle" color="green" icon="play" square wire:click="startTask({{ $task->id }})" :aria-label="__('Start task')" />
+                                        </flux:tooltip>
+                                    @endunless
                                 @endif
 
                                 @if ($task->status->isOnGoing())
-                                    <flux:button size="sm" variant="subtle" icon="stop" wire:click="finishTask({{ $task->id }})">{{ __('Finish task') }}</flux:button>
+                                    <flux:tooltip :content="__('Finish task')">
+                                        <flux:button size="sm" variant="subtle" color="sky" icon="stop" square wire:click="finishTask({{ $task->id }})" :aria-label="__('Finish task')" />
+                                    </flux:tooltip>
+                                @endif
+
+                                @if (! $blocked && $task->postponed_at === null && $task->status->isNotStarted() && $previous?->started_at !== null)
+                                    <flux:tooltip :content="__('Postpone task')">
+                                        <flux:button size="sm" variant="subtle" color="amber" icon="clock" square wire:click="openPostpone({{ $task->id }})" :aria-label="__('Postpone task')" />
+                                    </flux:tooltip>
                                 @endif
 
                                 <flux:dropdown align="end">
@@ -96,42 +112,60 @@
                             <flux:table bleed>
                                 <flux:table.rows>
                                     @foreach ($task->subTasks as $subTask)
-                                        @php($subDisabled = $disabled || $subTask->status->isCanceled() || $task->status->isFinished())
+                                        @php($previousSubTask = $loop->index > 0 ? $task->subTasks[$loop->index - 1] : null)
+                                        @php($subBlocked = $blocked || $task->postponed_at !== null || $task->subTasks->take($loop->index)->contains(fn ($earlier): bool => $earlier->postponed_at !== null))
+                                        @php($subDisabled = $disabled || $subTask->status->isCanceled() || $task->status->isFinished() || $subBlocked)
                                         @php($subLocked = $subDisabled || $subTask->status->isCompleted())
 
                                         <flux:table.row>
                                             <flux:table.cell class="w-1/12">
                                                 <flux:checkbox
                                                     :checked="$subTask->status->isFinished()"
-                                                    :disabled="$subDisabled"
+                                                    :disabled="$subDisabled || $subTask->postponed_at !== null"
                                                     wire:click="toggleSubTask({{ $subTask->id }})"
                                                     :aria-label="__('Mark :title as finished', ['title' => $subTask->title])"
                                                     class="m-auto"
                                                 />
                                             </flux:table.cell>
 
-                                            <flux:table.cell class="w-10/12">
+                                            <flux:table.cell class="w-9/12">
                                                 <div class="min-w-0 flex-1">
-                                                    <flux:heading size="sm">{{ $subTask->title }}</flux:heading>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <flux:heading size="sm">{{ $subTask->title }}</flux:heading>
+                                                        @if ($subTask->postponed_at !== null)
+                                                            <flux:badge size="sm" color="amber">{{ __('Postponed') }}</flux:badge>
+                                                        @endif
+                                                    </div>
                                                     @if (filled($subTask->summary))
                                                         <flux:text class="text-xs">{{ $subTask->summary }}</flux:text>
                                                     @endif
                                                 </div>
                                             </flux:table.cell>
 
-                                            <flux:table.cell class="w-1/12">
+                                            <flux:table.cell class="w-2/12">
                                                 @unless ($subLocked)
-                                                    <flux:dropdown align="end">
-                                                        <flux:button size="xs" icon="ellipsis-horizontal" square :aria-label="__('Sub-task actions')" />
-                                                        <flux:menu>
-                                                            @if ($subTask->status->isNotStarted())
-                                                                <flux:menu.item icon="play" wire:click="startTask({{ $subTask->id }})">{{ __('Start task') }}</flux:menu.item>
-                                                            @endif
-                                                            <flux:menu.item icon="pencil-square" wire:click="openTaskInfo({{ $subTask->id }})">{{ __('Update information') }}</flux:menu.item>
-                                                            <flux:menu.item icon="user-plus" wire:click="$dispatch('assign-member', { taskId: {{ $subTask->id }} })">{{ __('Assign member') }}</flux:menu.item>
-                                                            <flux:menu.item icon="building-office" wire:click="$dispatch('assign-contact', { taskId: {{ $subTask->id }} })">{{ __('Assign contact') }}</flux:menu.item>
-                                                        </flux:menu>
-                                                    </flux:dropdown>
+                                                    <div class="flex items-center justify-end gap-1">
+                                                        @if ($subTask->status->isNotStarted())
+                                                            <flux:tooltip :content="__('Start task')">
+                                                                <flux:button size="xs" variant="subtle" color="green" icon="play" square wire:click="startTask({{ $subTask->id }})" :aria-label="__('Start task')" />
+                                                            </flux:tooltip>
+                                                        @endif
+
+                                                        @if (! $subBlocked && $subTask->postponed_at === null && $subTask->status->isNotStarted() && $previousSubTask?->started_at !== null)
+                                                            <flux:tooltip :content="__('Postpone task')">
+                                                                <flux:button size="xs" variant="subtle" color="amber" icon="clock" square wire:click="openPostpone({{ $subTask->id }})" :aria-label="__('Postpone task')" />
+                                                            </flux:tooltip>
+                                                        @endif
+
+                                                        <flux:dropdown align="end">
+                                                            <flux:button size="xs" icon="ellipsis-horizontal" square :aria-label="__('Sub-task actions')" />
+                                                            <flux:menu>
+                                                                <flux:menu.item icon="pencil-square" wire:click="openTaskInfo({{ $subTask->id }})">{{ __('Update information') }}</flux:menu.item>
+                                                                <flux:menu.item icon="user-plus" wire:click="$dispatch('assign-member', { taskId: {{ $subTask->id }} })">{{ __('Assign member') }}</flux:menu.item>
+                                                                <flux:menu.item icon="building-office" wire:click="$dispatch('assign-contact', { taskId: {{ $subTask->id }} })">{{ __('Assign contact') }}</flux:menu.item>
+                                                            </flux:menu>
+                                                        </flux:dropdown>
+                                                    </div>
                                                 @endunless
                                             </flux:table.cell>
                                         </flux:table.row>
@@ -318,6 +352,20 @@
                         <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
                     </flux:modal.close>
                     <flux:button variant="danger" wire:click="cancelTask">{{ __('Cancel task') }}</flux:button>
+                </div>
+            </div>
+        </x-modal>
+
+        <x-modal wire:model.self="showPostpone" :title="__('Postpone task')">
+            <div class="flex flex-col gap-4">
+                <flux:textarea wire:model="postponeReason" :label="__('Reason')" rows="3" required />
+                <flux:error name="postponeReason" />
+
+                <div class="flex items-center justify-between">
+                    <flux:modal.close>
+                        <flux:button variant="subtle">{{ __('Cancel') }}</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="primary" wire:click="postponeTask">{{ __('Postpone') }}</flux:button>
                 </div>
             </div>
         </x-modal>

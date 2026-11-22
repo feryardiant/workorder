@@ -21,8 +21,9 @@ final class TaskChanged extends AuditableEvent
         TaskAction $action,
         ?string $from = null,
         ?string $to = null,
+        ?string $reason = null,
     ) {
-        parent::__construct($organization, $actor, $task, new TaskChangedPayload($action, $from, $to));
+        parent::__construct($organization, $actor, $task, new TaskChangedPayload($action, $from, $to, $reason));
     }
 
     public function auditEvent(): AuditEvent

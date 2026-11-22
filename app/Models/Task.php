@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property ?CarbonImmutable $started_at
  * @property ?CarbonImmutable $finished_at
  * @property ?CarbonImmutable $canceled_at
+ * @property ?CarbonImmutable $postponed_at
  * @property-read TaskStatus $status
  * @property-read Project $project
  * @property-read ?Task $parent
@@ -56,6 +57,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'started_at',
     'finished_at',
     'canceled_at',
+    'postponed_at',
 ])]
 #[RouteKey('slug')]
 class Task extends Model
@@ -73,6 +75,7 @@ class Task extends Model
             'started_at' => 'immutable_datetime',
             'finished_at' => 'immutable_datetime',
             'canceled_at' => 'immutable_datetime',
+            'postponed_at' => 'immutable_datetime',
         ];
     }
 
@@ -156,6 +159,42 @@ class Task extends Model
     }
 
     /**
+     * Determine whether the task is postponed and still waiting to start.
+     */
+    public function isPostponed(): bool
+    {
+        return $this->postponed_at !== null;
+    }
+
+    /**
+     * Determine whether the task can be postponed.
+     */
+    public function canPostpone(): bool
+    {
+        return ! $this->isDisabled()
+            && $this->status->isNotStarted()
+            && ! $this->isBlockedByPostponed()
+            && $this->previousSibling()?->started_at !== null;
+    }
+
+    /**
+     * Determine whether an earlier or parent postponed task blocks starting this one.
+     */
+    public function isBlockedByPostponed(): bool
+    {
+        if ($this->parent !== null && ($this->parent->isPostponed() || $this->parent->isBlockedByPostponed())) {
+            return true;
+        }
+
+        return self::query()
+            ->where('project_id', $this->project_id)
+            ->where('parent_id', $this->parent_id)
+            ->where('order', '<', $this->order)
+            ->whereNotNull('postponed_at')
+            ->exists();
+    }
+
+    /**
      * Determine whether the task is disabled by a cancellation.
      */
     public function isDisabled(): bool
@@ -180,5 +219,18 @@ class Task extends Model
             ->where('order', '<', $order)
             ->whereNotNull('canceled_at')
             ->exists();
+    }
+
+    /**
+     * Resolve the task directly above this one in the same list.
+     */
+    private function previousSibling(): ?self
+    {
+        return self::query()
+            ->where('project_id', $this->project_id)
+            ->where('parent_id', $this->parent_id)
+            ->where('order', '<', $this->order)
+            ->orderByDesc('order')
+            ->first();
     }
 }
