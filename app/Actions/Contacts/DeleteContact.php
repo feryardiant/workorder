@@ -10,8 +10,10 @@ use App\Enums\RelationshipPeriodReason;
 use App\Events\Contacts\ContactDeleted;
 use App\Models\Organization;
 use App\Models\OrganizationRelationship;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final class DeleteContact
 {
@@ -55,6 +57,21 @@ final class DeleteContact
             }
 
             $contact->setRelation('stakeholder', $stakeholder);
+
+            $activeProjects = Project::query()
+                ->where('owner_organization_id', $tenant->getKey())
+                ->where('customer_type', $stakeholder->getMorphClass())
+                ->where('customer_id', $stakeholder->getKey())
+                ->whereNull('finished_date')
+                ->whereNull('canceled_date')
+                ->count();
+
+            if ($activeProjects > 0) {
+                throw ValidationException::withMessages([
+                    'contact' => __('This customer still has :count active projects. Reassign or archive them before deleting.', ['count' => $activeProjects]),
+                ]);
+            }
+
             $removeOwned = $contact->canDeleteEntityFor($tenant);
 
             if ($removeOwned) {

@@ -13,6 +13,7 @@ use App\Models\ContactDetail;
 use App\Models\Organization;
 use App\Models\OrganizationRelationship;
 use App\Models\Person;
+use App\Models\Project;
 use App\Models\User;
 use App\Support\Feature\ContactDeletion;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -21,6 +22,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 use function Pest\Laravel\get;
@@ -347,6 +349,92 @@ test('a rejected person force delete keeps its contact details', function () {
         ->where('contactable_type', Person::class)
         ->where('contactable_id', $person->getKey())
         ->exists())->toBeTrue();
+});
+
+test('deleting a customer with an active project is blocked', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Admin);
+
+    $customer = contactIndividual($organization, ['name' => 'Busy Customer']);
+    Project::factory()->create([
+        'owner_organization_id' => $organization->getKey(),
+        'customer_id' => $customer->getKey(),
+        'customer_type' => $customer->getMorphClass(),
+    ]);
+
+    $relationshipId = contactRelationshipId($organization, $customer);
+
+    expect(fn () => app(DeleteContact::class)->handle($organization, $relationshipId))
+        ->toThrow(ValidationException::class);
+
+    expect(OrganizationRelationship::query()->find($relationshipId))->not->toBeNull()
+        ->and(Person::withTrashed()->find($customer->getKey())?->trashed())->toBeFalse();
+});
+
+test('a customer can be deleted once its projects are finished, canceled, or archived', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Admin);
+
+    $customer = contactOrganization($organization, ['name' => 'Finished Customer']);
+
+    $project = [
+        'owner_organization_id' => $organization->getKey(),
+        'customer_id' => $customer->getKey(),
+        'customer_type' => $customer->getMorphClass(),
+    ];
+
+    Project::factory()->create([...$project, 'finished_date' => now()->toDateString()]);
+    Project::factory()->create([...$project, 'canceled_date' => now()->toDateString()]);
+    Project::factory()->create($project)->delete();
+
+    app(DeleteContact::class)->handle($organization, contactRelationshipId($organization, $customer));
+
+    expect(Organization::withTrashed()->find($customer->getKey())?->trashed())->toBeTrue();
+});
+
+test('a project in another tenant does not block deleting the customer', function () {
+    $organization = Organization::factory()->create();
+    $other = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Admin);
+
+    $customer = contactIndividual($organization, ['name' => 'Shared Customer']);
+    Project::factory()->create([
+        'owner_organization_id' => $other->getKey(),
+        'customer_id' => $customer->getKey(),
+        'customer_type' => $customer->getMorphClass(),
+    ]);
+
+    app(DeleteContact::class)->handle($organization, contactRelationshipId($organization, $customer));
+
+    expect(Person::withTrashed()->find($customer->getKey())?->trashed())->toBeTrue();
+});
+
+test('bulk deletion is blocked when any selected customer has an active project', function () {
+    $organization = Organization::factory()->create();
+
+    actingAsMember($organization, Role::Admin);
+
+    $busy = contactIndividual($organization, ['name' => 'Bulk Busy']);
+    $free = contactIndividual($organization, ['name' => 'Bulk Free']);
+
+    Project::factory()->create([
+        'owner_organization_id' => $organization->getKey(),
+        'customer_id' => $busy->getKey(),
+        'customer_type' => $busy->getMorphClass(),
+    ]);
+
+    $ids = [
+        contactRelationshipId($organization, $busy),
+        contactRelationshipId($organization, $free),
+    ];
+
+    expect(fn () => app(DeleteContact::class)->handleBulk($organization, $ids))
+        ->toThrow(ValidationException::class);
+
+    expect(OrganizationRelationship::query()->whereKey($ids)->count())->toBe(2);
 });
 
 test('saving contact details for a deleted entity is rejected', function () {
