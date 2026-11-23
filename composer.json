@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "feryardiant/workorder",
     "type": "project",
-    "description": "Laravel Application Template.",
+    "description": "Multi-tenant CRM for organizations, people, memberships, approvals and project work.",
     "keywords": [],
     "license": "MIT",
     "require": {
