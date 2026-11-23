@@ -526,7 +526,7 @@ test('an after-transaction failure keeps the referenced staged photo', function 
     $member->person->update(['photo_url' => 'photos/old.jpg']);
     Storage::disk()->put('photos/old.jpg', 'photo');
 
-    DB::shouldReceive('transaction')->once()->andReturnUsing(function (Closure $callback): void {
+    DB::partialMock()->shouldReceive('transaction')->once()->andReturnUsing(function (Closure $callback): void {
         $callback();
 
         throw new RuntimeException('after commit');

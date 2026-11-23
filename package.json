@@ -10,6 +10,7 @@
         "format": "vp check --fix",
         "lint": "vp check",
         "prepare": "vp config",
+        "release": "commit-and-tag-version -s",
         "test": "vp test run"
     },
     "dependencies": {
@@ -23,13 +24,14 @@
         "@tailwindcss/vite": "^4.3.5",
         "@types/alpinejs": "^3.17.0",
         "@types/node": "^24.19.2",
+        "commit-and-tag-version": "^13.3.0",
         "concurrently": "^10.0.7",
         "fontaine": "^1.0.3",
         "laravel-vite-plugin": "^3.2.1",
-        "playwright": "^1.65.0",
+        "playwright": "^1.65.1",
         "typescript": "^7.0.2",
-        "vite": "npm:@voidzero-dev/vite-plus-core@1.6.0",
-        "vite-plus": "1.6.0"
+        "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000",
+        "vite-plus": "1.7.0"
     },
     "optionalDependencies": {
         "@laravel/multiplex": "^0.4.5",
@@ -38,7 +40,7 @@
         "lightningcss-linux-x64-gnu": "^1.29.1"
     },
     "overrides": {
-        "vite": "npm:@voidzero-dev/vite-plus-core@1.6.0"
+        "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8000"
     },
     "commitlint": {
         "extends": [
