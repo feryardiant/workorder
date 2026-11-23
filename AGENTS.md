@@ -64,7 +64,7 @@ Never run `docker compose` from a worktree: the project name is pinned, so it wo
   - Blade markup and server-rendered attributes → `tests/Unit/View/Ui` with `$this->blade()`;
   - Livewire rendering → `tests/Feature/Ui` with `Livewire::test()`;
   - `tests/Browser` only for interaction, Alpine reactivity, computed layout/touch sizes, accessibility audits, popovers, and uploads.
-- `composer test` does not run Vitest; run `vp test run` separately. `tests/InitRepoTest.php` is a standalone spec for `scripts/init-repo.php` and is outside the normal suites.
+- `composer test` does not run Vitest; run `vp test run` separately.
 - Add a feature test for behavior changes instead of writing a verification script or tinker snippet; reserve browser tests for critical end-to-end paths.
 
 ## Boost MCP

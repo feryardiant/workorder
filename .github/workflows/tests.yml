@@ -3,16 +3,8 @@ name: Tests
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - .github/workflows/init-repo.yml
-      - scripts/init-repo.php
-      - tests/InitRepoTest.php
   pull_request:
     branches: [main]
-    paths-ignore:
-      - .github/workflows/init-repo.yml
-      - scripts/init-repo.php
-      - tests/InitRepoTest.php
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}

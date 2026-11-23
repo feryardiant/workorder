@@ -105,7 +105,7 @@ set_env .env APP_PORT "$app_port"
 set_env .env SERVER_PORT "$app_port"
 set_env .env DEV_PORT "$dev_port"
 set_env .env APP_URL "http://localhost:${app_port}"
-set_env .env SESSION_COOKIE "laravel-template-${slug}-session"
+set_env .env SESSION_COOKIE "workorder-${slug}-session"
 set_env .env DB_HOST 127.0.0.1
 set_env .env DB_DATABASE "$db_name"
 set_env .env.testing APP_ENV testing
