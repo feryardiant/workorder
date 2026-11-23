@@ -12,29 +12,33 @@
 
         @foreach ($uploads as $index => $upload)
             <x-ui.file-upload.item :heading="$upload->getClientOriginalName()" :size="$upload->getSize()">
-                <x-slot:actions>
-                    <x-ui.file-upload.item.remove
-                        wire:click="removeUpload({{ $index }})"
-                        :aria-label="__('Remove :name', ['name' => $upload->getClientOriginalName()])"
-                    />
-                </x-slot:actions>
+                <flux:button
+                    icon="x-mark"
+                    size="xs"
+                    variant="ghost"
+                    class="[@media(hover:none)]:min-h-11 [@media(hover:none)]:min-w-11"
+                    wire:click.stop="removeQueuedUpload({{ $index }})"
+                    :aria-label="__('Remove :name', ['name' => $upload->getClientOriginalName()])"
+                />
             </x-ui.file-upload.item>
         @endforeach
 
-        @if ($this->attachments->isNotEmpty())
-            <div class="flex flex-col gap-2">
-                <flux:heading size="sm">{{ __('Uploaded files') }}</flux:heading>
-
-                @foreach ($this->attachments as $attachment)
-                    <div wire:key="attachment-{{ $attachment->id }}" class="flex items-center justify-between gap-2">
-                        <a href="{{ $attachment->url }}" target="_blank" class="truncate text-sm underline">{{ $attachment->name }}</a>
-                        <flux:button size="xs" variant="subtle" icon="trash" wire:click="remove({{ $attachment->id }})">
-                            {{ __('Remove') }}
-                        </flux:button>
-                    </div>
-                @endforeach
-            </div>
-        @endif
+        @foreach ($this->attachments as $attachment)
+            <x-ui.file-upload.item
+                wire:key="attachment-{{ $attachment->id }}"
+                :heading="$attachment->title"
+                :size="$attachment->size"
+            >
+                <flux:button
+                    icon="x-mark"
+                    size="xs"
+                    variant="ghost"
+                    class="[@media(hover:none)]:min-h-11 [@media(hover:none)]:min-w-11"
+                    wire:click.stop="remove({{ $attachment->id }})"
+                    :aria-label="__('Remove :name', ['name' => $attachment->title])"
+                />
+            </x-ui.file-upload.item>
+        @endforeach
 
         <div class="flex items-center justify-between">
             <flux:modal.close>

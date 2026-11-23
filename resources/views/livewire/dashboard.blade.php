@@ -1,3 +1,4 @@
+<div class="contents">
 @if ($organization === null)
     <div class="flex h-full w-full flex-1 flex-col gap-4 rounded-xl">
         <div class="flex flex-1 items-center justify-center">
@@ -139,3 +140,4 @@
         </div>
     </x-page>
 @endif
+</div>

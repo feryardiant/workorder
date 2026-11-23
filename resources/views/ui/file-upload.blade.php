@@ -1,12 +1,12 @@
-<div class="space-y-8">
-    <div class="space-y-2">
+<div class="flex flex-col gap-8">
+    <div class="flex flex-col gap-2">
         <h1 data-ui-outside class="text-2xl font-semibold">File upload</h1>
         <p class="text-sm text-zinc-500 dark:text-zinc-400">
             Dropzone, drag and drop, Livewire upload progress and removable file items.
         </p>
     </div>
 
-    <section data-ui-demo="file-upload-photos" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-photos" class="max-w-lg flex flex-col gap-3">
         <x-ui.file-upload
             wire:model="photos"
             multiple
@@ -25,16 +25,28 @@
         <div class="flex flex-col gap-2">
             @foreach ($photos as $index => $photo)
                 <x-ui.file-upload.item
-                    :heading="$photo->getClientOriginalName()"
-                    :image="$photo->temporaryUrl()"
-                    :size="$photo->getSize()"
+                    :file="$photo"
+                    wire:key="{{ $photo->getFilename() }}"
+                    wire:click="previewPhoto({{ $index }})"
                 >
-                    <x-slot:actions>
-                        <x-ui.file-upload.item.remove
-                            wire:click="removePhoto({{ $index }})"
-                            :aria-label="__('ui.file-upload.remove-named', ['name' => $photo->getClientOriginalName()])"
-                        />
-                    </x-slot:actions>
+                    <flux:button
+                        icon="eye"
+                        size="xs"
+                        variant="ghost"
+                        data-ui-test="preview"
+                        class="[@media(hover:none)]:min-h-11 [@media(hover:none)]:min-w-11"
+                        wire:click.stop="previewPhoto({{ $index }})"
+                        :aria-label="__('ui.file-upload.preview-named', ['name' => $photo->getClientOriginalName()])"
+                    />
+
+                    <flux:button
+                        icon="x-mark"
+                        size="xs"
+                        variant="ghost"
+                        class="[@media(hover:none)]:min-h-11 [@media(hover:none)]:min-w-11"
+                        wire:click.stop="removePhoto({{ $index }})"
+                        :aria-label="__('ui.file-upload.remove-named', ['name' => $photo->getClientOriginalName()])"
+                    />
                 </x-ui.file-upload.item>
             @endforeach
         </div>
@@ -44,9 +56,15 @@
         </p>
 
         <flux:button size="sm" wire:click="$refresh" data-ui-test="refresh">Refresh component</flux:button>
+
+        <x-modal wire:model.self="showPreview" title="Photo preview">
+            @if ($previewUrl)
+                <img src="{{ $previewUrl }}" alt="" class="max-h-[70vh] w-full rounded-lg object-contain" />
+            @endif
+        </x-modal>
     </section>
 
-    <section data-ui-demo="file-upload-avatar" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-avatar" class="max-w-lg flex flex-col gap-3">
         <x-ui.file-upload
             wire:model="avatar"
             accept="image/*"
@@ -57,17 +75,14 @@
         </x-ui.file-upload>
 
         @if ($avatar)
-            <x-ui.file-upload.item
-                :heading="$avatar->getClientOriginalName()"
-                :image="$avatar->temporaryUrl()"
-                :size="$avatar->getSize()"
-            >
-                <x-slot:actions>
-                    <x-ui.file-upload.item.remove
-                        wire:click="clearAvatar"
-                        :aria-label="__('ui.file-upload.remove-named', ['name' => $avatar->getClientOriginalName()])"
-                    />
-                </x-slot:actions>
+            <x-ui.file-upload.item :file="$avatar">
+                <flux:button
+                    icon="x-mark"
+                    size="xs"
+                    variant="ghost"
+                    wire:click="clearAvatar"
+                    :aria-label="__('ui.file-upload.remove-named', ['name' => $avatar->getClientOriginalName()])"
+                />
             </x-ui.file-upload.item>
         @endif
 
@@ -76,7 +91,7 @@
         </p>
     </section>
 
-    <section data-ui-demo="file-upload-custom" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-custom" class="max-w-lg flex flex-col gap-3">
         <x-ui.file-upload
             wire:model="customAvatar"
             accept="image/*"
@@ -102,11 +117,15 @@
                 </x-ui.file-upload.dropzone>
 
                 @if ($customAvatar)
-                    <x-ui.file-upload.item.remove
-                        circle
+                    <flux:button
+                        type="button"
+                        square
+                        size="xs"
+                        variant="ghost"
+                        icon="x-mark"
                         wire:click="clearCustomAvatar"
                         :aria-label="__('ui.file-upload.remove-named', ['name' => $customAvatar->getClientOriginalName()])"
-                        class="absolute end-0 bottom-0 z-10 border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-800"
+                        class="absolute end-0 bottom-0 z-10 rounded-full border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-800"
                     />
                 @else
                     <span class="pointer-events-none absolute end-0 bottom-0 rounded-full bg-white p-0.5 dark:bg-zinc-800">
@@ -121,7 +140,7 @@
         </p>
     </section>
 
-    <section data-ui-demo="file-upload-documents" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-documents" class="max-w-lg flex flex-col gap-3">
         <x-ui.file-upload
             wire:model="documents"
             multiple
@@ -135,16 +154,18 @@
         <div class="flex flex-col gap-2">
             @foreach ($documents as $index => $document)
                 <x-ui.file-upload.item
-                    :heading="$document->getClientOriginalName()"
-                    :size="$document->getSize()"
+                    :file="$document"
                     icon="document"
+                    wire:key="{{ $document->getFilename() }}"
                 >
-                    <x-slot:actions>
-                        <x-ui.file-upload.item.remove
-                            wire:click="removeDocument({{ $index }})"
-                            :aria-label="__('ui.file-upload.remove-named', ['name' => $document->getClientOriginalName()])"
-                        />
-                    </x-slot:actions>
+                    <flux:button
+                        icon="x-mark"
+                        size="xs"
+                        variant="ghost"
+                        class="[@media(hover:none)]:min-h-11 [@media(hover:none)]:min-w-11"
+                        wire:click.stop="removeDocument({{ $index }})"
+                        :aria-label="__('ui.file-upload.remove-named', ['name' => $document->getClientOriginalName()])"
+                    />
                 </x-ui.file-upload.item>
             @endforeach
         </div>
@@ -154,24 +175,24 @@
         </p>
     </section>
 
-    <section data-ui-demo="file-upload-disabled" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-disabled" class="max-w-lg flex flex-col gap-3">
         <x-ui.file-upload name="disabled_files" disabled>
             <x-ui.file-upload.dropzone heading="Uploads are disabled" />
         </x-ui.file-upload>
     </section>
 
-    <section data-ui-demo="file-upload-invalid" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-invalid" class="max-w-lg flex flex-col gap-3">
         <x-ui.file-upload name="invalid_files" label="Invalid upload" error="The file is too large">
             <x-ui.file-upload.dropzone heading="Upload a smaller file" />
         </x-ui.file-upload>
     </section>
 
-    <section data-ui-demo="file-upload-plain" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-plain" class="max-w-lg flex flex-col gap-3">
         <form
             method="post"
             action="{{ route('ui.file-upload.plain') }}"
             enctype="multipart/form-data"
-            class="space-y-3"
+            class="flex flex-col gap-3"
         >
             @csrf
 
@@ -188,19 +209,22 @@
         @endif
     </section>
 
-    <section data-ui-demo="file-upload-items" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-items" class="max-w-lg flex flex-col gap-3">
         <x-ui.file-upload.item heading="photo.png" :size="1536" />
         <x-ui.file-upload.item heading="report.pdf" :size="2097152" />
         <x-ui.file-upload.item heading="broken.pdf" :size="1024" invalid />
     </section>
 
-    <section data-ui-demo="file-upload-remove" class="max-w-lg space-y-3">
+    <section data-ui-demo="file-upload-remove" class="max-w-lg flex flex-col gap-3">
         <x-ui.file-upload.item heading="removable.pdf" :size="1024">
-            <x-slot:actions>
-                <x-ui.file-upload.item.remove
-                    :aria-label="__('ui.file-upload.remove-named', ['name' => 'removable.pdf'])"
-                />
-            </x-slot:actions>
+            <flux:button
+                icon="x-mark"
+                size="xs"
+                variant="ghost"
+                data-ui-test="remove"
+                class="[@media(hover:none)]:min-h-11 [@media(hover:none)]:min-w-11"
+                :aria-label="__('ui.file-upload.remove-named', ['name' => 'removable.pdf'])"
+            />
         </x-ui.file-upload.item>
     </section>
 </div>

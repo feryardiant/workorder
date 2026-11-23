@@ -78,3 +78,29 @@ it('renders disabled and invalid states', function () {
         ->assertSee('aria-invalid="true"', false)
         ->assertSee('disabled', false);
 });
+
+it('applies the class attribute to the control root', function () {
+    /** @var TestCase $this */
+    $view = $this->blade('<x-ui.autocomplete label="State" class="w-full sm:w-48" />');
+
+    expect((string) $view)->toMatch('/data-ui-autocomplete[^>]*sm:w-48/');
+});
+
+it('renders keyboard hints, masks and the copy and visibility controls', function () {
+    /** @var TestCase $this */
+    $view = $this->blade(<<<'BLADE'
+        <div>
+            <x-ui.autocomplete label="Search" placeholder="Search..." kbd="⌘K" clearable mask="99/99/9999" />
+            <x-ui.autocomplete label="Money" mask:dynamic="$money($input)" />
+            <x-ui.autocomplete label="Key" value="ABC" readonly copyable />
+            <x-ui.autocomplete label="Password" type="password" viewable />
+        </div>
+    BLADE);
+
+    $view->assertSee('⌘K')
+        ->assertSee('x-mask="99/99/9999"', false)
+        ->assertSee('x-mask:dynamic="$money($input)"', false)
+        ->assertSee(__('ui.autocomplete.clear'))
+        ->assertSee('aria-label="'.__('ui.autocomplete.copy').'"', false)
+        ->assertSee('aria-label="'.__('ui.autocomplete.show-password').'"', false);
+});

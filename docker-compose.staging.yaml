@@ -11,7 +11,7 @@ services:
     build:
       context: .
       dockerfile: scripts/docker/staging/Dockerfile
-    image: ghcr.io/feryardiant/laravel-template:staging
+    image: ghcr.io/feryardiant/workorder:staging
     environment: &environment
       APP_DEBUG: false
       APP_ENV: staging

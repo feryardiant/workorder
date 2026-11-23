@@ -91,7 +91,7 @@ class Upload extends Component
             ->get();
     }
 
-    public function removeUpload(int $index): void
+    public function removeQueuedUpload(int $index): void
     {
         if (! isset($this->uploads[$index])) {
             return;

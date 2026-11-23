@@ -87,8 +87,10 @@
         'labels' => $labels,
     ];
 
-    $rootAttributes = $attributes->filter(fn ($value, $key) => ! str_starts_with($key, 'wire:model'));
     $class = $attributes->get('class');
+    $rootAttributes = $attributes->filter(
+        fn ($value, $key) => ! str_starts_with($key, 'wire:model') && $key !== 'class',
+    );
 @endphp
 
 <flux:with-field
@@ -108,7 +110,7 @@
         @if ($draft) data-draft @endif
         :data-start-day="startDay"
         @if ($invalid) data-invalid @endif
-        @class(['w-full space-y-2 data-invalid:rounded-lg data-invalid:p-2 data-invalid:ring-2 data-invalid:ring-red-500', $class])
+        @class(['w-full flex flex-col gap-2 data-invalid:rounded-lg data-invalid:p-2 data-invalid:ring-2 data-invalid:ring-red-500', $class])
     >
         @if ($isPlain && $mode === 'single')
             <input
@@ -197,7 +199,7 @@
             :class="monthsData.length > 1 ? 'flex-col sm:flex-row' : ''"
         >
             <template x-for="month in monthsData" :key="month.key">
-                <div class="min-w-0 flex-1 space-y-2">
+                <div class="min-w-0 flex-1 flex flex-col gap-2">
                     <table
                         role="grid"
                         :aria-label="month.label"
