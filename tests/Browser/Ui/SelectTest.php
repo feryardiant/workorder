@@ -530,6 +530,7 @@ it('moves focus to the retry action on Tab after a search failure', function () 
                 return true;
             })()
             JS)
+        ->assertScript("getComputedStyle(document.querySelector('{$error}')).display !== 'none'")
         ->keys($trigger, ['Tab'])
         ->wait(0.2)
         ->assertScript("document.activeElement.hasAttribute('data-ui-retry')")
