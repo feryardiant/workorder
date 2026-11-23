@@ -1,5 +1,5 @@
-<div class="space-y-8">
-    <div class="space-y-2">
+<div class="flex flex-col gap-8">
+    <div class="flex flex-col gap-2">
         <h1 class="text-2xl font-semibold">UI components</h1>
         <p class="text-sm text-zinc-500 dark:text-zinc-400">
             Development gallery for the first-party component library.

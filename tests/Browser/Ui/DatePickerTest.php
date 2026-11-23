@@ -962,3 +962,85 @@ it('shows full preset labels in a grid on mobile', function () {
             })()
             JS);
 });
+
+it('applies a typed date from the masked input', function () {
+    $page = visit('/ui/date-picker')->on()->desktop();
+    $input = '[data-ui-demo=date-picker-inputs] [data-ui-trigger]';
+
+    $page->click($input)
+        ->wait(0.3)
+        ->keys($input, ['2', '0', '3', '0', '0', '5', '0', '6'])
+        ->keys($input, 'Enter')
+        ->wait(0.8)
+        ->assertScript("document.querySelector('[data-ui-bound=input-date]').textContent.trim() === '2030-05-06'")
+        ->assertNoJavaScriptErrors();
+});
+
+it('applies a typed date range from the masked inputs', function () {
+    $page = visit('/ui/date-picker')->on()->desktop();
+    $start = '[data-ui-demo=date-picker-range-inputs] [data-ui-trigger]';
+    $end = '[data-ui-demo=date-picker-range-inputs] [data-ui-end-trigger]';
+
+    $page->click($start)
+        ->wait(0.3)
+        ->keys($start, ['2', '0', '3', '0', '0', '5', '0', '6'])
+        ->click($end)
+        ->keys($end, ['2', '0', '3', '0', '0', '5', '1', '0'])
+        ->keys($end, 'Enter')
+        ->wait(0.8)
+        ->assertScript(<<<'JS'
+            (() => {
+                const text = document.querySelector('[data-ui-bound=input-range]').textContent.trim();
+
+                return text === '2030-05-06 / 2030-05-10';
+            })()
+            JS)
+        ->assertNoJavaScriptErrors();
+});
+
+it('clears the model when the typed date input is emptied', function () {
+    $page = visit('/ui/date-picker')->on()->desktop();
+    $input = '[data-ui-demo=date-picker-inputs] [data-ui-trigger]';
+
+    $page->click($input)
+        ->wait(0.3)
+        ->keys($input, ['Backspace'])
+        ->keys($input, 'Enter')
+        ->wait(0.8)
+        ->assertScript("document.querySelector('[data-ui-bound=input-date]').textContent.trim() === ''")
+        ->assertNoJavaScriptErrors();
+});
+
+it('commits a typed date when an outside click closes the picker', function () {
+    $page = visit('/ui/date-picker')->on()->desktop();
+    $input = '[data-ui-demo=date-picker-inputs] [data-ui-trigger]';
+
+    $page->click($input)
+        ->wait(0.3)
+        ->keys($input, ['2', '0', '3', '0', '0', '5', '0', '6'])
+        ->click('[data-ui-test=move-date]')
+        ->wait(0.8)
+        ->assertScript("document.querySelector('[data-ui-bound=input-date]').textContent.trim() === '2030-05-06'")
+        ->assertNoJavaScriptErrors();
+});
+
+it('does not emit change when an unchanged typed date closes', function () {
+    $page = visit('/ui/date-picker')->on()->desktop();
+    $root = '[data-ui-demo=date-picker-inputs] [data-ui-date-picker]';
+    $input = '[data-ui-demo=date-picker-inputs] [data-ui-trigger]';
+
+    $page->assertScript(<<<JS
+        (() => {
+            window.__dateChanges = 0;
+            document.querySelector('{$root}').addEventListener('change', () => window.__dateChanges++);
+
+            return true;
+        })()
+        JS)
+        ->click($input)
+        ->wait(0.3)
+        ->click('[data-ui-test=move-date]')
+        ->wait(0.5)
+        ->assertScript('window.__dateChanges === 0')
+        ->assertNoJavaScriptErrors();
+});

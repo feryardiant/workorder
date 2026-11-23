@@ -27,10 +27,10 @@
         ],
     ];
 
-    $rootAttributes = $attributes->filter(
-        fn ($value, $key) => ! str_starts_with($key, 'wire:model') && $key !== 'name',
-    );
     $class = $attributes->get('class');
+    $rootAttributes = $attributes->filter(
+        fn ($value, $key) => ! str_starts_with($key, 'wire:model') && ! in_array($key, ['class', 'name'], true),
+    );
 @endphp
 
 <flux:with-field
