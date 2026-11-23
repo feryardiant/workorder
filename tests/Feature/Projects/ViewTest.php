@@ -14,6 +14,7 @@ use App\Models\ProjectKind;
 use App\Models\ProjectKindTask;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -372,6 +373,52 @@ it('shows attachment counts and the aggregated list on the project view', functi
         ->assertSee('1 '.__('attachment'))
         ->assertSee('brief.pdf')
         ->assertSee('photo.jpg');
+});
+
+it('downloads every project attachment as a zip named after the project', function (): void {
+    Storage::fake();
+
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Files']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+    $project->update(['title' => 'Renov (Phase.1)']);
+
+    $attachments = collect([
+        Attachment::factory()->create(['attachable_type' => $project->getMorphClass(), 'attachable_id' => $project->getKey(), 'name' => 'brief.pdf']),
+        Attachment::factory()->create(['attachable_type' => $project->getMorphClass(), 'attachable_id' => $project->getKey(), 'name' => 'brief.pdf']),
+        Attachment::factory()->create(['attachable_type' => $project->tasks->first()->getMorphClass(), 'attachable_id' => $project->tasks->first()->getKey(), 'name' => 'photo.jpg']),
+    ]);
+
+    $attachments->each(fn (Attachment $attachment): mixed => Storage::disk()->put($attachment->path, 'contents'));
+
+    $component = Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('downloadAttachments')
+        ->assertFileDownloaded('Renov Phase1.zip');
+
+    $archive = tempnam(sys_get_temp_dir(), 'archive-');
+    file_put_contents($archive, base64_decode($component->effects['download']['content']));
+
+    $zip = new ZipArchive;
+    $zip->open($archive);
+
+    expect($zip->locateName('brief.pdf'))->not->toBeFalse()
+        ->and($zip->locateName('brief (2).pdf'))->not->toBeFalse()
+        ->and($zip->locateName('photo.jpg'))->not->toBeFalse();
+
+    $zip->close();
+    unlink($archive);
+});
+
+it('refuses to download when the project has no attachments', function (): void {
+    /** @var TestCase $this */
+    $kind = ProjectKind::factory()->create(['owner_organization_id' => $this->tenant->getKey(), 'title' => 'Empty']);
+    ProjectKindTask::factory()->for($kind, 'kind')->create(['position' => 1]);
+    $project = app(CreateProject::class)->handle($this->tenant, $kind, contactOrganization($this->tenant));
+
+    Livewire::test(View::class, ['project' => $project->fresh()])
+        ->call('downloadAttachments')
+        ->assertNotFound();
 });
 
 it('renders the project view with its task tree', function (): void {
