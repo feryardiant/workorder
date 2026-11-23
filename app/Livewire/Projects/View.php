@@ -6,6 +6,7 @@ namespace App\Livewire\Projects;
 
 use App\Actions\Projects\CancelProject;
 use App\Actions\Projects\CancelTask;
+use App\Actions\Projects\DownloadAttachment;
 use App\Enums\OrganizationRelationshipType;
 use App\Enums\ProjectAction;
 use App\Enums\ProjectStatus;
@@ -27,6 +28,8 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * @property-read Collection<int, Task> $tasks
@@ -457,6 +460,25 @@ class View extends Component
         $this->project->delete();
 
         $this->redirectRoute('projects.index', navigate: true);
+    }
+
+    public function downloadAttachments(DownloadAttachment $downloadAttachment): BinaryFileResponse
+    {
+        abort_if($this->projectAttachments->isEmpty(), 404);
+
+        $path = tempnam(sys_get_temp_dir(), 'attachments-');
+
+        if ($path === false) {
+            throw new RuntimeException('Unable to create the attachment archive.');
+        }
+
+        $filename = $downloadAttachment->handle($this->projectAttachments, $this->project, $path);
+
+        Flux::toast(variant: 'success', text: __('Attachments downloaded.'));
+
+        return response()
+            ->download($path, $filename)
+            ->deleteFileAfterSend();
     }
 
     #[On('task-updated')]

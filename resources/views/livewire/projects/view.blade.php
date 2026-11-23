@@ -260,6 +260,18 @@
             <flux:card body="divided">
                 <flux:card.header>
                     <flux:heading size="sm">{{ __('Attachments') }}</flux:heading>
+
+                    <flux:card.actions>
+                        <flux:button
+                            size="sm"
+                            variant="subtle"
+                            icon="archive-box-arrow-down"
+                            wire:click="downloadAttachments()"
+                            :disabled="$projectAttachments->isEmpty()"
+                            :tooltip="__('Download')"
+                            :aria-label="__('Download')"
+                        />
+                    </flux:card.actions>
                 </flux:card.header>
 
                 <flux:card.body>
